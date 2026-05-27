@@ -167,6 +167,8 @@ PR 合到 main,源 branch 自动删
 
 #### 接入新 repo
 
+> ⚠️ **前置:repo Settings → General → Pull Requests → "Allow auto-merge" 必须勾上**(不勾 `gh pr merge --auto` 静默失败)。`scripts/setup-repo.sh` 自动开这个开关,新 repo 接入不用手配;手配走旧 repo 自己去 repo Settings 勾。
+
 复制 `<reference-repo>/.github/workflows/dependabot-auto-merge.yml` 到新 repo 同位置即可。不需要新 secret(用默认 `GITHUB_TOKEN`)。
 
 ```sh

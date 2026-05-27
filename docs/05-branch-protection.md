@@ -49,6 +49,7 @@
 | **Allow merge commits** | ❌ | main 上不要 `Merge branch ...` 这种垃圾 commit |
 | **Allow squash merging** | ✅ | 唯一保留 —— PR squash 成 1 个 commit,跟 conventional commits 完美对齐 |
 | **Allow rebase merging** | ❌ | rebase 会把 PR 多个原 commit 全部推到 main,污染历史 |
+| **Allow auto-merge** | ✅ | 让 PR 等满足所有 ruleset 条件(CI 绿 + branch up-to-date 等)后自动合并 —— 是 dependabot auto-merge workflow 必备(`gh pr merge --auto` 命令要求,不勾静默失败)|
 | **Default to PR branch name** | 看偏好 | branch 命名规则约束 |
 | **Automatically delete head branches** | ✅ | merge 后远端 branch 自动删,repo 永远干净 |
 | **Always suggest updating PR branches** | 偏好 | 提示落后的 PR rebase main(配合 ruleset 的 "branches up to date" 用)|

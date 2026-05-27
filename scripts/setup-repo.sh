@@ -55,6 +55,7 @@ gh repo edit "$FULL" \
   --enable-squash-merge=true \
   --enable-rebase-merge=false \
   --delete-branch-on-merge=true \
+  --allow-auto-merge=true \
   --enable-issues=true \
   >/dev/null
 echo "  ✓ done"
