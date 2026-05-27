@@ -95,6 +95,95 @@ updates:
 
 **正例**:某 API 重写的 major(`eslint 8 → 9` 等),pluginAPI 完全不同,需要等 plugin 生态跟上才能升。
 
+### Auto-merge SOP(可选,推荐)
+
+各 repo 加一个 ~30 行的 workflow,让符合条件的 Dependabot PR 自动启用 GitHub auto-merge,跑通 CI 后自动 squash merge,不用每周手动点。
+
+跟上面的 **PR 处理 SOP** 是互补关系:SOP 描述**手动场景**(人审 changelog → 点 merge),本节描述**自动化场景**(符合条件的 patch / minor 自动合);major 仍然走 SOP 人审流程。
+
+#### 工作流文件
+
+`<repo>/.github/workflows/dependabot-auto-merge.yml`:
+
+```yaml
+name: Dependabot Auto-Merge
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dependabot/fetch-metadata@v2
+        id: meta
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable auto-merge for patch / minor
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "$PR_URL"
+```
+
+#### 关键决策
+
+| 维度 | 选择 | 原因 |
+|---|---|---|
+| **Auto-merge 哪些类型** | **patch + minor** | major 由 [升级风险分级](#升级风险分级) 决定,case-by-case 人审 |
+| **触发器** | `pull_request_target` 而非 `pull_request` | dependabot 在 `pull_request` 触发的 workflow 默认 GITHUB_TOKEN 是 read-only,改 `pull_request_target` 跑在 base branch 有 write 权限,不需要额外 Settings |
+| **Security**(`pull_request_target` 危险吗?)| 安全 | dependabot 不是 fork(internal bot),且 workflow 不 checkout PR head 代码,只读 PR URL —— 无 supply chain 风险 |
+| **跟 ruleset 交互** | 互补 | workflow **启用** GitHub auto-merge,GitHub 自己等满足 branch protection ruleset(必须 PR + 5 个 CI check + squash only)才合;ruleset 是 gate |
+| **位置** | 单 repo 各自一份 | ~30 行,reusable workflow 收益低,各 repo 复制 yml 即可 |
+
+#### 实际行为
+
+```
+Dependabot 周一开 PR(patch 升级)
+   ↓
+workflow 自动跑(pull_request_target opened)
+   ↓
+fetch-metadata 拿升级类型 → patch
+   ↓
+gh pr merge --auto --squash → GitHub auto-merge enabled
+   ↓
+GitHub 等 CI 5 个 check 全绿 + 其他 ruleset 满足
+   ↓
+全部满足 → GitHub 自动 squash merge
+   ↓
+PR 合到 main,源 branch 自动删
+```
+
+对应的 major PR 流程不变:不触发 auto-merge → 人工 review changelog(走上面 **PR 处理 SOP**)→ 决定合 / close / ignore。
+
+#### 接入新 repo
+
+复制 `<reference-repo>/.github/workflows/dependabot-auto-merge.yml` 到新 repo 同位置即可。不需要新 secret(用默认 `GITHUB_TOKEN`)。
+
+```sh
+# 单 repo 接入(在新 repo 根目录)
+mkdir -p .github/workflows
+cp /path/to/reference-repo/.github/workflows/dependabot-auto-merge.yml \
+   .github/workflows/dependabot-auto-merge.yml
+git add .github/workflows/dependabot-auto-merge.yml
+git commit -m "ci: 加 dependabot auto-merge workflow"
+```
+
+#### 什么时候**不**该用
+
+- 你想每个依赖升级都手审(强合规项目 / 自托管 critical service)
+- 你的 CI 不够覆盖(没 type / integration test 等),怕 patch 升级偷偷引入 BC
+- 团队规模小到不在乎每周点几下手动 merge
+
 ### 何时关 + ignore
 
 | 情形 | 操作 |
