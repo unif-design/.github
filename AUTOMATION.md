@@ -437,7 +437,19 @@ updates:
 
 ---
 
-## 安全扫描(CodeQL)
+## 安全扫描
+
+GitHub 提供 4 个层面的免费安全检测,**全部建议启用**(repo Settings → Code security):
+
+| 工具 | 检查什么 | 状态 |
+|---|---|---|
+| **Dependabot alerts** | 依赖里的已知 CVE | 默认 Enabled,不动 |
+| **Dependabot security updates** | 漏洞依赖自动开 PR 升级 | 跟 dependabot.yaml 不同;Settings 单开 |
+| **CodeQL Code scanning** | 代码静态扫描(SQL 注入 / XSS / 不安全 deserialization 等)| 详见下方 CodeQL 子节 |
+| **Secret scanning alerts** | 不小心 push 的 token / API key / 密码 | 公有 repo 免费,**建议启用** |
+| **Private vulnerability reporting** | 让 SECURITY.md 里"Report a vulnerability"按钮在 repo 上可用 | 跟 SECURITY.md 配套,**建议启用** |
+
+### CodeQL Code scanning
 
 代码层面的安全扫描,跟 Dependabot 的"依赖漏洞扫描"互补。
 
@@ -767,6 +779,23 @@ git fetch --prune && git branch -vv | awk '/: gone]/{print $1}' | xargs -r git b
 - ✅ `feat(components): empty 加 icon prop`
 
 **修法**:subject 全小写。组件名 / 类名 / Pascal-case 名字在 subject 里写小写,需要原名可以放 body / footer。或者配 `subject-case: [0]` 关掉规则(不推荐,大部分项目坚持惯例)。
+
+---
+
+### CodeQL Default setup 跑了未勾选的语言(polyglot repo 踩坑)
+
+**根因**:Default setup 的 Language auto-detection 是**强制行为**,扫描 repo 内**所有 detect 到**的语言,UI 上 deselect checkbox **对 auto-detected 语言无效**。
+
+**典型表现(RN 项目)**:
+- repo 含 `example/android/` 的 Java/Kotlin 样板代码 → GitHub auto-detect 到
+- 第一次 default run 跑 java-kotlin job 失败(`No build command found`)
+- 即便 UI 上 Java/Kotlin 没勾选,backend 仍 enable
+
+**修法**:
+- **方案 A**(推荐):切到 **Advanced setup** —— Disable Default setup,自己写 `.github/workflows/codeql.yml`,显式 matrix language 只列 `javascript-typescript`,GitHub 完全照 yml 走不再 auto-detect
+- **方案 B**:接受现状,Default setup 配 deselect 后,新 PR 的 CodeQL run 已经只跑 JS/TS(虽然 Security tab 上还有第一次失败的 stale alert,下次 push 自动清)
+
+**通用教训**:Default setup 对单一语言项目最好(就 JS/TS 仓库),对 polyglot(混合 native + JS)用 Advanced setup 自己控制。
 
 ---
 
