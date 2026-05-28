@@ -179,7 +179,7 @@ on:
 |---|---|---|---|
 | 1 | release commit 带 `[skip ci]` | `release-it.git.commitMessage: "chore: release ${version} [skip ci]"` | 这条 commit 的 push 被 GitHub Actions 直接跳过,不触发任何 workflow |
 | 2 | job 级 `if` 兜底 | 见下方 | 万一 `[skip ci]` 失效,push 上来的 `chore: release` commit 仍被 skip |
-| 3 | `concurrency` 串行 | `group: release` + `cancel-in-progress: false` | 同一时间只允许 1 个发版 run;发版跑到一半不能打断,故 `cancel-in-progress: false` |
+| 3 | `concurrency` 串行 | `group: ${{ github.workflow }}` + `cancel-in-progress: false` | 同一时间只允许 1 个发版 run;发版跑到一半不能打断,故 `cancel-in-progress: false`。group 用 `${{ github.workflow }}` 动态命名(而非硬编码 `release`),避免跨 workflow 重名误取消 |
 
 ```yaml
 jobs:
@@ -190,7 +190,7 @@ jobs:
 
 ```yaml
 concurrency:
-  group: release
+  group: ${{ github.workflow }}   # 动态命名,避免跨 workflow group 重名误取消
   cancel-in-progress: false
 ```
 
