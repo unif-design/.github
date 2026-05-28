@@ -130,8 +130,6 @@ dry-run 完别忘了还原,不然下一次 commit 会带上意外的 version bum
 
 ### Release workflow 跑了但没发版
 
-### Release workflow 跑了但没发版
-
 **正常,不是 bug**。原因:最新 commit 是 `chore:` / `docs:` 等非 release-worthy 前缀,release-it 看到"无可发布变更"exit 0。
 
 如果**应该发版但没发**:确认 commit 前缀是不是 `feat:` / `fix:` / 含 `BREAKING CHANGE:`。是的话看 release-it 日志,可能是 conventional-changelog plugin 解析出了问题。

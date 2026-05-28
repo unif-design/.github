@@ -18,15 +18,16 @@ on:
   workflow_dispatch:
     inputs:
       increment:
-        description: '强制版本类型(留空走 conventional commits 自动推断)'
+        description: '版本类型(auto = 走 conventional commits 自动推断)'
+        default: auto
         type: choice
-        options: ['', patch, minor, major]
+        options: [auto, patch, minor, major]   # 不能用空字符串 ''——actionlint 拒空 choice(见 03-ci)
 ```
 
 两条路径:
 
 1. **自动**:PR 合并到 main + 改动命中上述 paths → 工作流跑
-2. **手动应急**:Actions → Release → Run workflow → 选 increment(`patch` / `minor` / `major` 或留空)
+2. **手动应急**:Actions → Release → Run workflow → 选 increment(`patch` / `minor` / `major`,或保持 `auto` 走自动推断)
 
 ### 版本推断逻辑
 
@@ -39,7 +40,7 @@ on:
 只有 chore: / docs: / 等   → 不发版,release-it exit 0
 ```
 
-`workflow_dispatch` 时若传了 `increment`,**强制**使用,跳过自动推断。
+`workflow_dispatch` 时选了 `patch` / `minor` / `major` 就**强制**该类型、跳过自动推断;保持默认 `auto` 则走自动推断(release.yml 里 `INCREMENT != auto` 才把它传给 release-it)。
 
 ### 两套凭据,各管一段
 
