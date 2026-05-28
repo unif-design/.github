@@ -23,7 +23,7 @@
        ▼
    GitHub UI 开 PR(PR template 自动套)
        │
-       │ CI 自动跑 5 个 check
+       │ CI 自动跑 6 个 check
        ▼
    ┌─────────────────┐
    │ Branch protection│  阻止直接 push main
@@ -36,16 +36,18 @@
             │
             │ 命中 release.yml paths?
             ▼
-   ┌─────────────────────────────────┐
-   │ Release workflow(自动 / 手动)  │
-   │   1. 跑 lint + typecheck + test │
-   │   2. release-it --ci            │
-   │      └ 推断 bump 类型           │
-   │      └ npm Trusted Publishing   │
-   │      └ git commit + tag         │
-   │      └ 创建 GitHub Release      │
-   │      └ 写 CHANGELOG.md          │
-   └─────────────────────────────────┘
+   ┌──────────────────────────────────────┐
+   │ Release workflow(自动 / 手动)        │
+   │   0. 签发 App token(push main 用)    │
+   │   1. 跑 lint + typecheck + test       │
+   │   2. release-it --ci                  │
+   │      └ 推断 bump 类型                 │
+   │      └ npm publish(OIDC,无 token)   │
+   │      └ git commit + tag(App token)   │
+   │         commit 带 [skip ci] 防自触发  │
+   │      └ 创建 GitHub Release            │
+   │      └ 写 CHANGELOG.md                │
+   └──────────────────────────────────────┘
             │
             ▼
        npm registry + GitHub Release

@@ -18,7 +18,46 @@
 
 **修法**:走 PR + Squash merge。**正确的反馈,不是 bug**。
 
-如果是 release-it bot 推 release commit 被拦:Bypass list 加 `Repository role: Admin`。
+如果是**发版 bot** 推 release commit 被拦:用自建 GitHub App 现场签发的 token push,且把该 App 加进 ruleset Bypass list、**mode 选 `Always`**(不是 `For pull requests`,直接 push 不经 PR)。`GITHUB_TOKEN` / `github-actions[bot]` 加不进 bypass。完整方案见 [发版机制 → push 回受保护 main](./04-release.md#push-回受保护-main--用-github-app-token)。
+
+---
+
+### `release.yml` if 表达式含冒号导致 workflow 不注册
+
+**现象**:改完 `release.yml` 后,Actions 列表里**根本看不到** Release 这个 workflow,push / 手动都不触发 —— 像是没生效。点进文件 GitHub 顶部报 `mapping values are not allowed here`。
+
+**根因**:job 级 `if` 写成 plain scalar 且表达式里含 `'chore: release'`,这个**冒号**在 YAML plain scalar 中被当成 mapping(键值对)的分隔符,整个 `release.yml` YAML 解析失败。**YAML 解析失败的 workflow GitHub 直接不注册**,所以列表里看不到、也不触发。
+
+```yaml
+# ❌ 冒号被 YAML 当 mapping 分隔符,解析炸
+if: ${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: release') }}
+
+# ✅ 整个 ${{ }} 套一层 YAML 双引号,引号内冒号不再解析为 mapping
+if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: release') }}"
+```
+
+**通用教训**:workflow 里任何含 `: `(冒号+空格)或其它 YAML 特殊字符的 `if` / 表达式 / 字符串,都要套引号。这类 YAML bug 光靠 lint js/ts 的 CI 拦不住 —— 加 [actionlint](./03-ci.md#actionlint--防-workflow-yaml--shell-bug) 在 PR 阶段就能挡。
+
+---
+
+### 发版死循环(无限刷版本号)
+
+**现象**:合并一个 PR 后,Release workflow 一遍遍自己触发自己,版本号止不住地往上刷(react-native-design 实测刷出 `0.4.0`~`0.4.33` 几十个空版本)。
+
+**根因**:release-it 推回 main 的 `chore: release` commit 改了 `package.json`,命中 `release.yml` 的 `paths:`(含 `package.json`)→ 再次触发 release.yml → 再发再 push → 死循环。
+
+**关键反直觉点**:这个循环是**修好 App token push 之后**才出现的 —— 之前 release commit 的 push 被 ruleset 拦着根本推不上去,所以没循环。**"让 CI 写回受保护分支" 和 "防 CI 写回触发自己" 必须成对做**,只做前者必炸。
+
+**应急止血**(循环正在跑时,从快到慢):
+
+1. **最快**:GitHub → Actions → 左侧选 Release workflow → 右上 `···` → **Disable workflow**(立刻切断触发,止血后再修)
+2. 或者 cancel 当前正在跑的那个 run(只能挡这一轮,下一轮 push 又会触发)
+3. 修好三道防线(下方)后,`···` → **Enable workflow** 恢复
+
+**根治 —— 三道防线**(见 [发版机制 → 防自触发死循环](./04-release.md#防自触发死循环)):
+1. release commit message 带 `[skip ci]`(`release-it.git.commitMessage`)
+2. job 级 `if` 跳过 `chore: release` 开头的 push
+3. `concurrency: { group: release, cancel-in-progress: false }`
 
 ---
 

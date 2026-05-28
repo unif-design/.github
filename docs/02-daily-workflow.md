@@ -72,17 +72,18 @@ PR template(`.github/PULL_REQUEST_TEMPLATE.md`)自动套上,填:
 - 验证清单
 - 影响范围
 
-### 6. CI 5 个 check 必须全绿
+### 6. CI 6 个 check 必须全绿
 
 | Check | 跑什么 | 阻塞合并 |
 |---|---|---|
+| `CI / actionlint` | 校验 workflow YAML / 表达式 / `run:` shell | ✅ |
 | `CI / lint` | `yarn lint`(eslint + prettier)| ✅ |
 | `CI / test` | `yarn test --maxWorkers=2 --coverage` | ✅ |
 | `CI / build-library` | `yarn prepare`(bob build → `lib/`)| ✅ |
 | `CI / build-android` | turbo 跑 example android 编译 | ✅ |
 | `CI / build-ios` | turbo 跑 example iOS 编译(macos-latest)| ✅ |
 
-ruleset 配了 5 个 check 为 required,缺一不可。
+ruleset 配了 6 个 check 为 required,缺一不可。
 
 ### 7. self-review + Squash and merge
 

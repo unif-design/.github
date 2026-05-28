@@ -19,9 +19,9 @@
 
 | # | 章节 | 一句话 |
 |---|---|---|
-| 3 | [CI workflow](docs/03-ci.md) | 5 个 job(lint / test / build×3)+ 缓存策略 + 触发条件 |
-| 4 | [发版机制](docs/04-release.md) | `release.yml` + release-it + Trusted Publishing (OIDC) + CHANGELOG |
-| 5 | [Branch protection (Rulesets)](docs/05-branch-protection.md) | Ruleset 4 项 + Repo Settings 配套勾选项(Squash only / Auto-delete)|
+| 3 | [CI workflow](docs/03-ci.md) | 6 个 job(actionlint / lint / test / build×3)+ pin SHA + 缓存策略 |
+| 4 | [发版机制](docs/04-release.md) | `release.yml` + release-it + 两套凭据(OIDC publish + App token push)+ 防发版死循环 |
+| 5 | [Branch protection (Rulesets)](docs/05-branch-protection.md) | Ruleset 4 项 + 发版 App 进 bypass + Repo Settings 配套勾选项 |
 | 6 | [依赖管理 (Dependabot)](docs/06-dependencies.md) | 配置 / PR SOP / `@dependabot` 命令 / major 升级 case-by-case |
 | 7 | [安全扫描](docs/07-security.md) | CodeQL / Secret scanning / Private vulnerability reporting / Dependabot alerts |
 | 8 | [PR Review (AI 辅助)](docs/08-pr-review.md) | PR Agent + DeepSeek 自动 review,prompt 分层,命令清单 |
@@ -32,7 +32,7 @@
 | # | 章节 | 一句话 |
 |---|---|---|
 | 10 | [应急流程](docs/10-emergency.md) | 手动触发发版 / 关闭 Dependabot PR / 回滚 / 本地 branch 清理 |
-| 11 | [排查常见报错](docs/11-troubleshooting.md) | 8 个真实踩过的坑 + 修法(release-it / commitlint / yarn.lock / CodeQL polyglot ...)|
+| 11 | [排查常见报错](docs/11-troubleshooting.md) | 真实踩过的坑 + 修法(release-it / 发版死循环 / YAML 冒号 / commitlint / yarn.lock / CodeQL polyglot ...)|
 | 12 | [配置文件清单 + 不要做的事](docs/12-reference.md) | 所有配置文件路径速查 + 11 条 don't-list |
 
 ## 新 repo 接入

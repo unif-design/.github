@@ -19,6 +19,9 @@
 | `GitHub Settings → Rules → Rulesets` | main branch protection(UI 配,不在仓库)|
 | `GitHub Settings → General → Pull Requests` | Squash merge default + auto-delete head branches(UI 配)|
 | `npmjs.com → 包 Settings → Publishing access → Trusted Publishers` | npm OIDC trusted publisher 绑定(UI 配)|
+| `GitHub Org → Developer settings → GitHub Apps → unif-release-bot` | **Org 级**发版 App,权限只给 `Contents: write`,装到 all repos(UI 配)|
+| `GitHub Org Settings → Variables → RELEASE_APP_ID` | **Org 级**发版 App 的 App ID(UI 配,non-secret)|
+| `GitHub Org Settings → Secrets → RELEASE_APP_PRIVATE_KEY` | **Org 级**发版 App 的 private key(UI 配)|
 | `.github/workflows/pr-agent.yml`(各 caller repo) | PR Agent caller workflow,5 行调用 org reusable |
 | `.pr_agent.toml`(各 caller repo 根目录) | PR Agent 项目特有 prompt(可选)|
 | `unif-design/.github/.github/workflows/pr-agent.yml` | **Org 级** PR Agent reusable workflow,模型 + DeepSeek key + 通用 prompt |
@@ -37,6 +40,12 @@
 - ❌ **`npm publish` 手动** —— 走 OIDC trusted publishing 后,本地没 npm 凭据
 - ❌ **手 改自动生成的 `data.ts` / lockfile / 类型 declaration** —— 都是脚本 / 工具产物,手改下次重新生成会被覆盖
 - ❌ **`release.yml` 加 `NPM_TOKEN` 回退** —— Trusted Publishing 是单一发版凭据,不要混杂方案
+- ❌ **给发版 App 配超出 `Contents: write` 的权限** —— push commit/tag 够用;权限越大,key 泄露面越大
+- ❌ **用个人 PAT 替发版 bot push main** —— long-lived、绑个人、owner 离职即挂。用 org GitHub App 现场签发的短期 token(见 [发版机制](./04-release.md#push-回受保护-main--用-github-app-token))
+- ❌ **在 `run:` 里直接 `${{ steps... }}` / `${{ github... }}` 插值** —— 先落 `env:` 再用 `$VAR`,杜绝 shell 注入(GitHub 安全最佳实践)
+- ❌ **只修"让 CI 写回 main"却不加防循环** —— 一旦 release commit 能 push 上去,就会命中 `release.yml` 的 paths 触发自己,无限发版。push 能力和 `[skip ci]` + job `if` + `concurrency` 三道防线必须同时上(见 [防自触发死循环](./04-release.md#防自触发死循环))
+- ❌ **`uses:` 写浮动 tag(`@v5` / `@main`)** —— tag 可被移到恶意 commit。pin 到 40 位 commit SHA + `# vX.Y.Z` 注释,Dependabot 自动维护升级(见 [pin SHA](./03-ci.md#第三方-action-一律-pin-到-commit-sha))
+- ❌ **workflow 表达式 / `if` 含 `: ` 不套引号** —— YAML 把冒号当 mapping 分隔符,解析失败 workflow 静默不注册。整个 `${{ }}` 套 YAML 双引号,并靠 actionlint 兜底
 - ❌ **在 Dependabot PR 上手动 `git push --force`** —— 一旦你 push 过,Dependabot 视为你接管这个 PR,不再自动 rebase / recreate;且你本地 `yarn install` 解析可能跟 bot 不同,引入坏 yarn.lock。坏了就 `@dependabot close` 让 bot 重开
 - ❌ **把 `pr_agent` 加进 ruleset 的 required status checks** —— AI review 是参考性,DeepSeek API 临时挂或 review 慢会卡死合并
 - ❌ **无脑 `@dependabot ignore this major version`** —— 有些 major 实质是 `engines.node` bump 或内部重构,user-facing API 无变化(参考 release-it 19→20)。**先看 changelog 再决定 ignore**
