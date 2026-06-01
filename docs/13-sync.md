@@ -91,8 +91,8 @@ cd /path/to/unif-design/.github
 
 | 类别 | 文件 | 行为 |
 |---|---|---|
-| **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` / `lefthook.yml` / `SECURITY.md` / `PULL_REQUEST_TEMPLATE.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
-| **仅缺时创建** | `dependabot.yaml` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
+| **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
+| **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `dependabot.yaml` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
 | **按 native/JS** | `release.yml` 的 `on.push.paths` | 目标有 `*.podspec` → 含 `ios/android/podspec`;纯 JS → 只含 `src/scripts/package` |
 

@@ -18,9 +18,9 @@
 #   - 强制覆盖(统一标准,不允许单仓 drift):
 #       .github/workflows/{ci,release,pr-title,pr-agent,dependabot-auto-merge}.yml
 #       lefthook.yml / SECURITY.md
-#       .github/PULL_REQUEST_TEMPLATE.md
 #       .github/ISSUE_TEMPLATE/{bug_report,config}.yml
 #   - 仅当目标【不存在】时创建(保留各仓 repo 特化,不覆盖):
+#       .github/PULL_REQUEST_TEMPLATE.md(各仓有特化 checklist,如 umeng 微信分享项)
 #       .github/dependabot.yaml(各仓有特化分组)
 #       .pr_agent.toml(各仓有特化 review 规则)
 #       .github/ISSUE_TEMPLATE/feature_request.yml(各仓有特化字段)
@@ -120,7 +120,6 @@ render workflows/pr-agent.yml                 .github/workflows/pr-agent.yml
 render workflows/dependabot-auto-merge.yml    .github/workflows/dependabot-auto-merge.yml
 render lefthook.yml                           lefthook.yml
 render SECURITY.md                            SECURITY.md
-render PULL_REQUEST_TEMPLATE.md               .github/PULL_REQUEST_TEMPLATE.md
 render ISSUE_TEMPLATE/bug_report.yml          .github/ISSUE_TEMPLATE/bug_report.yml
 render ISSUE_TEMPLATE/config.yml              .github/ISSUE_TEMPLATE/config.yml
 echo ""
@@ -172,6 +171,7 @@ echo ""
 
 # ── 4. 仅缺时创建(保留 repo 特化)───────────────────────────────────
 echo "→ [4] 仅当不存在时创建(保留 repo 特化)"
+render_if_absent PULL_REQUEST_TEMPLATE.md          .github/PULL_REQUEST_TEMPLATE.md
 render_if_absent dependabot.yaml                   .github/dependabot.yaml
 render_if_absent pr_agent.toml                     .pr_agent.toml
 render_if_absent ISSUE_TEMPLATE/feature_request.yml .github/ISSUE_TEMPLATE/feature_request.yml
