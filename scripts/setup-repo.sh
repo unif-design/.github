@@ -8,8 +8,8 @@
 #   1. 已经 `gh auth login`,gh 当前账号是 unif-design 的 admin
 #   2. 目标 repo 已经存在(没创建过先用 `gh repo create unif-design/<repo>`)
 #   3. CI workflow(`.github/workflows/ci.yml`)已经在 repo 里且跑过至少一次
-#      (Ruleset 要求 lint / test / build-library / build-android / build-ios
-#      这 5 个 check 已经被 GitHub 索引)
+#      (Ruleset 要求 actionlint / lint / test / build-library / build-android / build-ios
+#      这 6 个 check 已经被 GitHub 索引;ci.yml 由 sync-repo.sh 从 .github/templates 下发)
 #
 # 跑完后还要手配:
 #   - npm Trusted Publisher(在 npmjs.com 端,如果是 npm 包)
@@ -61,7 +61,7 @@ gh repo edit "$FULL" \
 echo "  ✓ done"
 echo ""
 
-# ── 2. Branch Ruleset(必须 PR / 5 个 required check / 禁 force push)──
+# ── 2. Branch Ruleset(必须 PR / 6 个 required check / 禁 force push / release-bot bypass)──
 echo "→ [2/6] Branch Ruleset \"protect main\" ..."
 # 先看有没有同名 ruleset(幂等性 —— 已存在则更新)
 EXISTING_ID=$(gh api "repos/$FULL/rulesets" --jq '.[] | select(.name == "protect main") | .id' 2>/dev/null || echo "")
@@ -131,5 +131,5 @@ echo ""
 echo "仍需手配:"
 echo "  □ Topics(repo Settings → About → Edit topics)"
 echo "  □ npm Trusted Publisher(npmjs.com → 包 Settings,如果发 npm 包)"
-echo "  □ 各 caller workflow / .pr_agent.toml / dependabot.yaml 自己 commit 进 repo"
+echo "  □ workflow / 配置文件:跑 ./scripts/sync-repo.sh $REPO 下发(本脚本只管 GitHub 端配置)"
 echo "  □ 详见:https://github.com/unif-design/.github/blob/main/ONBOARDING.md"

@@ -10,13 +10,20 @@
 
 ## 接入步骤(~10 分钟)
 
-### 1. Push 第一波代码 + CI workflow
+### 1. 下发标准 workflow + 配置文件(sync-repo.sh)
 
-新 repo 必须先有 `.github/workflows/ci.yml`,且**至少跑过一次**(成功或失败都行,GitHub 需要索引 check 名字)。否则 ruleset 的 required status checks 配置会失败。
+先把标准 workflow 同步进新 repo 的工作树:
 
-参考 react-native-design 的 `.github/workflows/ci.yml` 结构。
+```sh
+cd /path/to/unif-design/.github
+./scripts/sync-repo.sh <repo-name>          # 默认目标 ../<repo-name>
+```
 
-### 2. 跑 setup-repo.sh
+脚本从 `templates/` 拷贝 `ci.yml` / `release.yml` / dependabot / lefthook / PR&Issue 模板等,做变量替换(repo 名 / npm 包名 / Pages URL),按 native/JS + 有无 website 条件分发。**不 commit / 不 push** —— review `git diff` 后自己 commit + 开 PR(详见 [13-sync](docs/13-sync.md))。
+
+新 repo 必须先有 `.github/workflows/ci.yml`,且 **commit 进 repo + 至少跑过一次**(成功或失败都行,GitHub 需要索引 check 名字),否则下一步 ruleset 的 required status checks 配置会失败。
+
+### 2. 跑 setup-repo.sh(GitHub 端配置)
 
 ```sh
 cd /path/to/unif-design/.github
@@ -34,7 +41,7 @@ cd /path/to/unif-design/.github
 |---|---|
 | Merge methods | 只允许 Squash merge |
 | Auto-delete head branches | merge 后自动删源 branch |
-| Branch Ruleset "protect main" | 必须 PR + 5 个 required checks + 禁 force push + Squash only |
+| Branch Ruleset "protect main" | 必须 PR + 6 个 required checks(含 actionlint）+ 禁 force push + Squash only + release-bot bypass |
 | Secret scanning + Push protection | enable |
 | Private vulnerability reporting | enable(配合 SECURITY.md)|
 | CodeQL Default setup(JS/TS only)| enable |
@@ -43,18 +50,18 @@ cd /path/to/unif-design/.github
 
 跑完看到 `✅ <repo> GitHub 端配置完成`,GitHub 端就齐了。
 
-### 3. Commit caller workflows 进 repo
+### 3. Commit 同步下来的文件进 repo
 
-从 react-native-design 复制以下文件到新 repo,根据需要调整:
+step 1 的 `sync-repo.sh` 已经把这些文件落到工作树(无需再手动从 react-native-design 复制),review 后 commit + PR:
 
-| 文件 | 必需? |
-|---|---|
-| `.github/workflows/ci.yml` | ✅ 已经在 step 1 |
-| `.github/workflows/pr-agent.yml`(5 行 caller)| 推荐 |
-| `.github/workflows/release.yml` | npm 包必需 |
-| `.github/workflows/deploy-docs.yml` | 有 docs 站才需要 |
-| `.github/dependabot.yaml` | 推荐 |
-| `.pr_agent.toml`(根目录,项目特有 prompt)| 可选 |
+| 文件 | 由 sync 下发 | 说明 |
+|---|---|---|
+| `.github/workflows/ci.yml` | 强制覆盖 | 四仓最优并集 |
+| `.github/workflows/release.yml` | 强制覆盖 | paths 按 native/JS 注入;npm 包必需 |
+| `.github/workflows/pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` | 强制覆盖 | |
+| `.github/workflows/deploy-docs.yml` | 条件分发 | 仅有 `website/` 的仓 |
+| `lefthook.yml` / `SECURITY.md` / `.github/PULL_REQUEST_TEMPLATE.md` / `ISSUE_TEMPLATE/*` | 强制覆盖 / 部分仅缺时创建 | |
+| `.github/dependabot.yaml` / `.pr_agent.toml` | 仅缺时创建 | 保留各仓 repo 特化,不覆盖 |
 
 ### 4. npm Trusted Publisher(npm 包专用)
 

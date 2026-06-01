@@ -19,7 +19,7 @@
 
 | # | 章节 | 一句话 |
 |---|---|---|
-| 3 | [CI workflow](docs/03-ci.md) | 6 个 job(actionlint / lint / test / build×3)+ pin SHA + 缓存策略 |
+| 3 | [CI workflow](docs/03-ci.md) | `changes` 门控 + 6 个 required job(actionlint / lint / test / build×3)+ pin SHA + 缓存策略 |
 | 4 | [发版机制](docs/04-release.md) | `release.yml` + release-it + 两套凭据(OIDC publish + App token push)+ 防发版死循环 |
 | 5 | [Branch protection (Rulesets)](docs/05-branch-protection.md) | Ruleset 4 项 + 发版 App 进 bypass + Repo Settings 配套勾选项 |
 | 6 | [依赖管理 (Dependabot)](docs/06-dependencies.md) | 配置 / PR SOP / `@dependabot` 命令 / major 升级 case-by-case |
@@ -34,10 +34,11 @@
 | 10 | [应急流程](docs/10-emergency.md) | 手动触发发版 / 关闭 Dependabot PR / 回滚 / 本地 branch 清理 |
 | 11 | [排查常见报错](docs/11-troubleshooting.md) | 真实踩过的坑 + 修法(release-it / 发版死循环 / YAML 冒号 / commitlint / yarn.lock / CodeQL polyglot ...)|
 | 12 | [配置文件清单 + 不要做的事](docs/12-reference.md) | 所有配置文件路径速查 + 11 条 don't-list |
+| 13 | [一键同步 workflow 模板](docs/13-sync.md) | `templates/` 标准源 + `scripts/sync-repo.sh` 下发(`ci.yml` 四仓最优并集 / 变量替换 / 覆盖 vs 保留特化)|
 
 ## 新 repo 接入
 
-跑 `scripts/setup-repo.sh <repo>` 一键配齐 GitHub 端,详见 [ONBOARDING.md](ONBOARDING.md)(~10 分钟接入完成)。
+跑 `scripts/sync-repo.sh <repo>` 下发标准 workflow + `scripts/setup-repo.sh <repo>` 配齐 GitHub 端,详见 [ONBOARDING.md](ONBOARDING.md)(~10 分钟接入完成)。
 
 ## 维护
 

@@ -1,0 +1,20 @@
+# 目标路径:lefthook.yml(仓库根)
+# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 本地 git hook:pre-commit 跑 eslint + tsc,commit-msg 跑 commitlint。
+pre-commit:
+  parallel: true
+  commands:
+
+    lint:
+      glob: "*.{js,ts,jsx,tsx}"
+      run: npx eslint {staged_files}
+
+    types:
+      glob: "*.{js,ts,jsx,tsx}"
+      run: npx tsc
+
+commit-msg:
+  parallel: true
+  commands:
+    commitlint:
+      run: npx commitlint --edit

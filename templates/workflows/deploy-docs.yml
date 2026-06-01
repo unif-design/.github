@@ -1,0 +1,72 @@
+# 目标路径:.github/workflows/deploy-docs.yml
+# 由 unif-design/.github 的 templates/ 同步而来 —— 仅有 website/ 的仓才下发(sync 条件分发)。
+#
+# 占位符(sync-repo.sh 替换):
+#   {{NPM_PKG}}  → npm 包名(如 @unif/react-native-design);website workspace = {{NPM_PKG}}-website
+#   {{PAGES_URL}} → GitHub Pages URL(如 https://unif-design.github.io/react-native-design/)
+name: Deploy Docs
+
+# Docusaurus 站点部署到 GitHub Pages。
+# 默认 URL:{{PAGES_URL}}
+#
+# 前置(一次性):
+#   GitHub repo → Settings → Pages → Source: GitHub Actions
+#
+# 触发:
+#   - push:main 且改了 website/src/package 等
+#   - 手动 workflow_dispatch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'src/**'                          # website 直接 import library 源码
+      - 'package.json'
+      - 'yarn.lock'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# GitHub Pages 官方推荐:同一时间只 1 个 deploy in flight,新的等老的跑完
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0          # docusaurus 算 last-updated 时间要全历史
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build website
+        run: yarn workspace {{NPM_PKG}}-website build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: website/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

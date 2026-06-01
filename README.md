@@ -6,6 +6,9 @@
 
 | 文件 | 作用 | 共享机制 |
 |---|---|---|
+| `templates/` | 标准 workflow + 配置文件源(`ci.yml` 四仓最优并集 / release / dependabot / lefthook / PR&Issue 模板 / SECURITY) | `scripts/sync-repo.sh` 下发到各 repo |
+| `scripts/sync-repo.sh` | 把 `templates/` 同步到目标 repo(变量替换 + 条件分发,不 push) | 见 [AUTOMATION docs/13](docs/13-sync.md) |
+| `scripts/setup-repo.sh` | 配 GitHub 端(merge / ruleset / security / Pages) | 见 [ONBOARDING](ONBOARDING.md) |
 | `.github/workflows/pr-agent.yml` | PR Agent + DeepSeek 自动 review,reusable workflow | 各 repo 写 5 行 caller 调用 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | 全 org 默认 PR 模板(通用版)| repo 自己有同名文件则 override |
 | `CONTRIBUTING.md` | 全 org 通用贡献指南 | 同上 |
@@ -38,6 +41,16 @@ jobs:
 ```
 
 在自己的 repo 根目录可选加 `.pr_agent.toml` 补项目特有的 review prompt(覆盖 org 通用 prompt)。
+
+## 标准 workflow 模板 + 一键同步
+
+`templates/` 是所有仓 workflow / 配置文件的**唯一标准源**,`scripts/sync-repo.sh <repo>` 一键下发(变量替换 + 条件分发,不 commit 不 push,改动留给各仓 review + PR)。
+
+```sh
+./scripts/sync-repo.sh react-native-design
+```
+
+`ci.yml` 取四仓最优并集(actionlint 加固 / `changes` 门控 / build-android temurin / build-ios macos-26+prebuilt)。覆盖策略:workflow 强制统一,`.pr_agent.toml` / `dependabot.yaml` 等带 repo 特化的仅缺时创建。详见 [docs/13-sync.md](docs/13-sync.md)。
 
 ## 自动化流程标准
 
