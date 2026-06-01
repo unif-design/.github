@@ -112,6 +112,28 @@ render_if_absent() {
   render "$1" "$2"
 }
 
+# 删历史遗留的旧名文件(模板改名后旧文件不会自动消失,留着会双触发 / drift)
+# prune_stale <target-rel-path>
+prune_stale() {
+  local dst="$TARGET/$1"
+  if [[ -e "$dst" ]]; then
+    if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1 && \
+       git -C "$TARGET" ls-files --error-unmatch "$1" >/dev/null 2>&1; then
+      git -C "$TARGET" rm -q "$1"   # git 跟踪的走 git rm(记成 rename)
+    else
+      rm -f "$dst"
+    fi
+    echo "  ✗ $1(旧名文件,已删除)"
+  fi
+}
+
+# ── 0. 清理历史遗留旧名(模板改名后的 stale 文件)────────────────────
+echo "→ [0] 清理旧名文件"
+# dependabot-automerge.yml(无连字符)→ 已统一为 dependabot-auto-merge.yml。
+# 留着会跟新名文件双触发(每个 dependabot PR 跑两遍 auto-merge)。
+prune_stale .github/workflows/dependabot-automerge.yml
+echo ""
+
 # ── 1. 强制覆盖的 workflow / 配置文件 ────────────────────────────────
 echo "→ [1] 强制覆盖(统一标准)"
 render workflows/ci.yml                       .github/workflows/ci.yml
