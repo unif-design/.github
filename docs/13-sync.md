@@ -16,7 +16,7 @@
 
 | 脚本 | 管什么 | 怎么实现 |
 |---|---|---|
-| `setup-repo.sh <repo>` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / CodeQL / Pages | `gh api` PATCH/PUT,改 GitHub 服务端 |
+| `setup-repo.sh <repo>` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | `gh api` PATCH/PUT,改 GitHub 服务端 |
 | `sync-repo.sh <repo>` | **repo 内文件** —— workflow / dependabot / lefthook / PR&Issue 模板 / SECURITY | 拷贝 `templates/` + 变量替换,改目标仓工作树 |
 
 两者互补:先 `sync-repo.sh` 把 `ci.yml` 等文件 commit 进 repo + 跑过一次(GitHub 索引 check 名),再 `setup-repo.sh` 配 ruleset(required checks 才挂得上)。

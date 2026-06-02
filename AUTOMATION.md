@@ -23,7 +23,7 @@
 | 4 | [发版机制](docs/04-release.md) | `release.yml` + release-it + 两套凭据(OIDC publish + App token push)+ 防发版死循环 |
 | 5 | [Branch protection (Rulesets)](docs/05-branch-protection.md) | Ruleset 4 项 + 发版 App 进 bypass + Repo Settings 配套勾选项 |
 | 6 | [依赖管理 (Dependabot)](docs/06-dependencies.md) | 配置 / PR SOP / `@dependabot` 命令 / major 升级 case-by-case |
-| 7 | [安全扫描](docs/07-security.md) | CodeQL / Secret scanning / Private vulnerability reporting / Dependabot alerts |
+| 7 | [安全扫描](docs/07-security.md) | Secret scanning / Private vulnerability reporting / Dependabot alerts(CodeQL 评估后不启用)|
 | 8 | [PR Review (AI 辅助)](docs/08-pr-review.md) | PR Agent + DeepSeek 自动 review,prompt 分层,命令清单 |
 | 9 | [Org 级共享基础设施](docs/09-org-sharing.md) | `.github` 仓库 / org secret / reusable workflow / 新 repo 接入 |
 

@@ -98,20 +98,13 @@ if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.he
 
 ---
 
-### CodeQL Default setup 跑了未勾选的语言(polyglot repo 踩坑)
+### CodeQL Default setup 跑了未勾选的语言(polyglot repo 踩坑)→ 已决定关闭 CodeQL
 
-**根因**:Default setup 的 Language auto-detection 是**强制行为**,扫描 repo 内**所有 detect 到**的语言,UI 上 deselect checkbox **对 auto-detected 语言无效**。
+**根因**:Default setup 的 Language auto-detection 是**强制行为**,扫描 repo 内**所有 detect 到**的语言,UI 上 deselect checkbox **对 auto-detected 语言无效**。典型表现(RN 项目):`example/android/` 的 Kotlin 样板被 auto-detect → java-kotlin job `No build command found` 失败;design 的 Gemfile 被检测到 → 自动加回 `ruby`,各仓覆盖面漂移。
 
-**典型表现(RN 项目)**:
-- repo 含 `example/android/` 的 Java/Kotlin 样板代码 → GitHub auto-detect 到
-- 第一次 default run 跑 java-kotlin job 失败(`No build command found`)
-- 即便 UI 上 Java/Kotlin 没勾选,backend 仍 enable
+**最终决策(2026-06):四仓统一关闭 CodeQL**,不再跟 Default setup 的 auto-detect 较劲。理由:小团队私有 RN bridge 库 JS/TS 层薄、CodeQL 安全价值低,polyglot 仓维护成本 > 收益。详见 [07-security.md](07-security.md)。`setup-repo.sh [4/6]` 已改成主动 PATCH `not-configured` enforce 关闭。
 
-**修法**:
-- **方案 A**(推荐):切到 **Advanced setup** —— Disable Default setup,自己写 `.github/workflows/codeql.yml`,显式 matrix language 只列 `javascript-typescript`,GitHub 完全照 yml 走不再 auto-detect
-- **方案 B**:接受现状,Default setup 配 deselect 后,新 PR 的 CodeQL run 已经只跑 JS/TS(虽然 Security tab 上还有第一次失败的 stale alert,下次 push 自动清)
-
-**通用教训**:Default setup 对单一语言项目最好(就 JS/TS 仓库),对 polyglot(混合 native + JS)用 Advanced setup 自己控制。
+> 备选(将来真要上代码扫描):**单仓**切 **Advanced setup** —— 自己写 `.github/workflows/codeql.yml`,显式 matrix `language: javascript-typescript`,GitHub 不再 auto-detect。
 
 ---
 

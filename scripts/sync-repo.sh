@@ -2,7 +2,7 @@
 # 把 unif-design/.github 的 templates/ 同步到目标 repo 工作树。
 #
 # 跟 setup-repo.sh 分工:
-#   - setup-repo.sh —— 配 GitHub 端(merge methods / ruleset / security / CodeQL / Pages),走 gh api
+#   - setup-repo.sh —— 配 GitHub 端(merge methods / ruleset / security / 关 CodeQL / Pages),走 gh api
 #   - sync-repo.sh  —— 下发 repo 内的 workflow + 配置文件(本脚本),走文件拷贝 + 变量替换
 #
 # 用法:

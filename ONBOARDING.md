@@ -44,7 +44,7 @@ cd /path/to/unif-design/.github
 | Branch Ruleset "protect main" | 必须 PR + 6 个 required checks(含 actionlint;native 仓为 8 个,多 `lint-cpp` / `lint-kotlin`)+ 禁 force push + Squash only + release-bot bypass。脚本检测到 `native-lint.yml` 自动套 8-check 版 ruleset |
 | Secret scanning + Push protection | enable |
 | Private vulnerability reporting | enable(配合 SECURITY.md)|
-| CodeQL Default setup(JS/TS only)| enable |
+| CodeQL Default setup | ⊘ **disable**(主动关闭,理由见 [07-security.md](docs/07-security.md))|
 | GitHub Pages(若有 deploy-docs.yml)| enable + Source=GitHub Actions |
 | About → Website | 自动指向 Pages URL |
 
@@ -103,7 +103,7 @@ npmjs.com → 你的包 → Settings → Publishing access → Trusted Publisher
 - Repo Settings 重设同样值
 - Ruleset 同名存在则 PUT 更新,不存在则 POST 新建
 - Security features 已 enable 重 enable 一次也无副作用
-- CodeQL Default setup 重配会保持 query suite / languages 不变
+- CodeQL Default setup 重跑保持 not-configured(主动关闭,不会被重新打开)
 
 跑多次幂等。
 

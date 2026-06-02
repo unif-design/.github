@@ -100,16 +100,17 @@ gh api -X PUT "repos/$FULL/private-vulnerability-reporting" >/dev/null
 echo "  ✓ done"
 echo ""
 
-# ── 4. CodeQL Default setup ───────────────────────────────────────────
-echo "→ [4/6] CodeQL Default setup(只跑 JavaScript/TypeScript)..."
-# 注意:Default setup 对 polyglot repo 不友好(可能 auto-detect Java/Kotlin)
-# 这里显式只 enable javascript-typescript;其他 detect 到的会 skip
+# ── 4. CodeQL:显式关闭(小团队私有 RN bridge 库不上 CodeQL)──────────
+echo "→ [4/6] CodeQL Default setup:显式关闭 ..."
+# 决策(deep-research 结论):小团队私有 RN bridge 库不启用 CodeQL。
+#   · JS/TS 层薄(主要是 native bridge 胶水),CodeQL 静态扫描安全价值低
+#   · polyglot native 仓(Kotlin / ObjC / C++)Default setup 不友好 —— 会 auto-detect
+#     java-kotlin / c-cpp、要 build、拖慢或失败,对 RN native bridge 实际告警价值有限
+#   · 一致性:Default setup 的语言列表 GitHub 会自动重检测、在各仓漂移(详见 docs/07-security.md)
+# 主动 PATCH not-configured —— 即便 GitHub 对某仓自动开启了 Default setup 也会被关掉,enforce 统一关闭。
 gh api -X PATCH "repos/$FULL/code-scanning/default-setup" \
-  -f 'state=configured' \
-  -f 'query_suite=default' \
-  -F 'languages[]=javascript-typescript' \
-  >/dev/null || echo "  ⚠ CodeQL setup 失败(可能没有 Code scanning 权限或 repo 太新),稍后手配"
-echo "  ✓ done(或跳过)"
+  -f 'state=not-configured' \
+  >/dev/null 2>&1 && echo "  ✓ CodeQL 已关闭" || echo "  ⊘ CodeQL 本就未启用,跳过"
 echo ""
 
 # ── 5. GitHub Pages(只在仓库已有 deploy workflow 时启用)─────────────
