@@ -224,6 +224,31 @@ render_if_absent pr_agent.toml                     .pr_agent.toml
 render_if_absent ISSUE_TEMPLATE/feature_request.yml .github/ISSUE_TEMPLATE/feature_request.yml
 echo ""
 
+# ── 4b. 校验 package.json 的 workflow 依赖配置(sync 不改 package.json,只报警)──
+# workflow 文件同步过去了,但它运行时依赖 package.json 里的配置 —— 那些是各仓特化、sync 故意不碰:
+#   ci.yml / nightly 的 `yarn turbo run build:*`      → devDep turbo
+#   release.yml 的 `npx release-it`(npm OIDC publish) → release-it 配置 + npm.skipChecks + conventional-changelog plugin
+# 脚手架不全的新仓(如当初 hms-scan 缺 turbo / release-it)会缺这些 → workflow 跑起来才报错。
+# 这里在 sync 时提前校验 + 报警,免得等 CI 一个个挂才发现。
+echo "→ [4b] 校验 package.json 的 workflow 依赖配置"
+if [[ -f "$TARGET/package.json" ]]; then
+  node -e '
+    const p = require(process.argv[1]);
+    const dd = p.devDependencies || {};
+    const ri = p["release-it"];
+    const w = [];
+    if (!dd.turbo) w.push("缺 devDep turbo —— ci.yml / nightly 的 yarn turbo run build:* 会失败");
+    if (!ri) w.push("缺 release-it 配置 —— release.yml 用默认,npm OIDC 被 whoami 预检查挡(Not authenticated)");
+    else if (!(ri.npm && ri.npm.skipChecks === true)) w.push("release-it.npm.skipChecks 未开 —— npm Trusted Publishing(OIDC)会被 whoami 预检查挡");
+    if (!dd["@release-it/conventional-changelog"]) w.push("缺 devDep @release-it/conventional-changelog —— release-it 算 changelog 的 plugin");
+    if (w.length) { console.log("  ⚠ package.json 缺 workflow 依赖配置(sync 不改 package.json,需手动补齐):"); w.forEach(x => console.log("    ✗ " + x)); }
+    else console.log("  ✓ turbo / release-it(skipChecks)/ conventional-changelog 齐全");
+  ' "$TARGET/package.json" || echo "  ⚠ package.json 解析失败,跳过校验"
+else
+  echo "  ⊘ 目标无 package.json,跳过"
+fi
+echo ""
+
 # ── 5. 报告 diff(不 commit 不 push)─────────────────────────────────
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ 同步完成(未 commit / 未 push)。改动:"
