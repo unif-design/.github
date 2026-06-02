@@ -1,0 +1,84 @@
+# 目标路径:.github/workflows/native-lint.yml
+# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 改 native lint 标准请改 .github/templates/workflows/native-lint.yml 再 sync-repo.sh 下发。
+#
+# 仅下发给有 native 源码的仓(umeng / hms-scan):
+#   - lint-cpp    —— ObjC++/C++(*.mm/*.h/*.cpp)走 clang-format,读仓库根 .clang-format
+#   - lint-kotlin —— Kotlin(*.kt)走 ktlint,读 .editorconfig
+# 对标 vision-camera 的 lint-cpp / lint-kotlin。check 模式(--dry-run / 默认 check),违规即红。
+#
+# 【required check —— 故意不加 on.paths】:加了会让 required check 在不匹配的 PR 上
+# 永远 pending,卡死 merge(见 ci.yml 同款教训)。native 文件不变的 PR 上,这两个 job
+# 跑现存(已格式化)文件秒过,不影响。
+#
+# 【版本 pin】:required check 不能因工具升级无故变红。clang-format pin apt 的 -18,
+# ktlint pin 到固定 release。本地 reformat 必须用同版本工具,否则 CI 红。
+name: Native Lint
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-cpp:
+    name: lint-cpp
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install clang-format
+        # pin 大版本 -18(ubuntu-24.04 universe 自带)。本地 reformat 用同版本(brew llvm@18)。
+        run: sudo apt-get update && sudo apt-get install -y clang-format-18
+
+      - name: clang-format check (dry-run, Werror)
+        shell: bash
+        run: |
+          mapfile -t FILES < <(find ios android -type f \
+            \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' -o -name '*.cc' -o -name '*.c' -o -name '*.m' -o -name '*.mm' \) \
+            -not -path '*/build/*' -not -path '*/Pods/*' 2>/dev/null)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "无 C/C++/ObjC++ 文件,跳过"
+            exit 0
+          fi
+          clang-format-18 --version
+          printf '%s\n' "${FILES[@]}"
+          # --dry-run + --Werror:格式不符即非零退出(不改文件)。读仓库根 .clang-format。
+          clang-format-18 --dry-run --Werror "${FILES[@]}"
+
+  lint-kotlin:
+    name: lint-kotlin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install ktlint
+        # pin 到固定 release(不要 latest —— 新版加规则会让 required check 无故变红)。
+        # 与本地 reformat 用的 brew ktlint 同版本,否则本地格式化后 CI 仍可能红。
+        env:
+          KTLINT_VERSION: 1.8.0
+        run: |
+          curl -sSLO "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
+          chmod a+x ktlint
+          sudo mv ktlint /usr/local/bin/
+
+      - name: ktlint check
+        shell: bash
+        run: |
+          ktlint --version
+          # ktlint 自带 glob;读 .editorconfig。无 --format = check 模式,违规非零退出。
+          ktlint "android/**/*.kt" "android/**/*.kts"

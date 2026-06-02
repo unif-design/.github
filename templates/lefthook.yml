@@ -1,6 +1,6 @@
 # 目标路径:lefthook.yml(仓库根)
 # 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
-# 本地 git hook:pre-commit 跑 eslint + tsc,commit-msg 跑 commitlint。
+# 本地 git hook:pre-commit 跑 eslint + tsc(+ native 仓的 clang-format / ktlint),commit-msg 跑 commitlint。
 pre-commit:
   parallel: true
   commands:
@@ -12,6 +12,20 @@ pre-commit:
     types:
       glob: "*.{js,ts,jsx,tsx}"
       run: npx tsc
+
+    # ── native 格式化(只在 native 仓的 *.mm/*.kt 被 stage 时触发;非 native 仓 glob 不命中,惰性无害)──
+    # 工具没装时 `command -v` 兜底跳过(只警告不卡 commit)—— CI 的 native-lint 才是硬 gate。
+    # 注意:本地工具版本最好对齐 CI(clang-format 18 / ktlint 1.8.0),否则本地格式化后 CI 仍可能红。
+    # 本最小 .clang-format(LLVM/2/120)跨版本输出一致,brew clang-format(新版)够用。
+    clang-format:
+      glob: "*.{h,hpp,cpp,cc,c,m,mm}"
+      stage_fixed: true
+      run: command -v clang-format >/dev/null 2>&1 && clang-format -i {staged_files} || echo "⚠ clang-format 未装(brew install clang-format),跳过本地格式化;CI 会检查"
+
+    ktlint:
+      glob: "*.{kt,kts}"
+      stage_fixed: true
+      run: command -v ktlint >/dev/null 2>&1 && ktlint -F {staged_files} || echo "⚠ ktlint 未装(brew install ktlint),跳过本地格式化;CI 会检查"
 
 commit-msg:
   parallel: true

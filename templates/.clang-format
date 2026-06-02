@@ -1,0 +1,12 @@
+# 目标路径:.clang-format(仓库根)
+# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一,勿单仓 drift。
+# 仅下发给有 native 源码(*.mm / *.h / *.cpp)的仓(umeng / hms-scan)。
+#
+# 刻意只用「跨 clang-format 版本都稳定」的 3 个老选项:本地 reformat(brew llvm@18)
+# 与 CI(apt clang-format-18)输出要一致,选项越少越不会因版本差异产生 diff。
+# 不要加 c++20 / AlwaysBreakTemplateDeclarations 等新版改名/改默认的选项。
+# 不设 PointerAlignment —— 留 LLVM 默认 Right(`NSString *p`),这是 ObjC/.mm 惯例;
+# 设 Left(`NSString* p`)会反惯例 + 把现存 ObjC 代码搅出大 diff。
+BasedOnStyle: LLVM
+IndentWidth: 2
+ColumnLimit: 120

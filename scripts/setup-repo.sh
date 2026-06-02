@@ -10,6 +10,8 @@
 #   3. CI workflow(`.github/workflows/ci.yml`)已经在 repo 里且跑过至少一次
 #      (Ruleset 要求 actionlint / lint / test / build-library / build-android / build-ios
 #      这 6 个 check 已经被 GitHub 索引;ci.yml 由 sync-repo.sh 从 .github/templates 下发)
+#      native 仓(umeng / hms-scan)还要 native-lint.yml 跑过一次(多 lint-cpp / lint-kotlin
+#      两个 check),本脚本检测到 native-lint.yml 会自动套 8-check 版 ruleset。
 #
 # 跑完后还要手配:
 #   - npm Trusted Publisher(在 npmjs.com 端,如果是 npm 包)
@@ -61,18 +63,28 @@ gh repo edit "$FULL" \
 echo "  ✓ done"
 echo ""
 
-# ── 2. Branch Ruleset(必须 PR / 6 个 required check / 禁 force push / release-bot bypass)──
+# ── 2. Branch Ruleset(必须 PR / required check / 禁 force push / release-bot bypass)──
 echo "→ [2/6] Branch Ruleset \"protect main\" ..."
+# native 仓(有 .github/workflows/native-lint.yml)多 lint-cpp / lint-kotlin 两个 required check,
+# 套 8-check 版 ruleset;其余套 6-check 版。判据 = 仓里有没有 native-lint.yml
+# (它由 sync-repo.sh 仅下发给 native 仓 —— 有它 ⟺ 有那两个 check ⟺ 该用 8-check 版),自洽。
+if gh api "repos/$FULL/contents/.github/workflows/native-lint.yml" >/dev/null 2>&1; then
+  RULESET_FILE="$SCRIPT_DIR/rulesets/protect-main-native.json"
+  echo "  · 检测到 native-lint.yml → 用 8-check ruleset(含 lint-cpp / lint-kotlin)"
+else
+  RULESET_FILE="$SCRIPT_DIR/rulesets/protect-main.json"
+  echo "  · 无 native-lint.yml → 用 6-check ruleset"
+fi
 # 先看有没有同名 ruleset(幂等性 —— 已存在则更新)
 EXISTING_ID=$(gh api "repos/$FULL/rulesets" --jq '.[] | select(.name == "protect main") | .id' 2>/dev/null || echo "")
 if [[ -n "$EXISTING_ID" ]]; then
   echo "  ⚠ 已有同名 ruleset (id=$EXISTING_ID),更新它"
   gh api -X PUT "repos/$FULL/rulesets/$EXISTING_ID" \
-    --input "$SCRIPT_DIR/rulesets/protect-main.json" \
+    --input "$RULESET_FILE" \
     >/dev/null
 else
   gh api -X POST "repos/$FULL/rulesets" \
-    --input "$SCRIPT_DIR/rulesets/protect-main.json" \
+    --input "$RULESET_FILE" \
     >/dev/null
 fi
 echo "  ✓ done"

@@ -26,6 +26,7 @@
 #       .github/ISSUE_TEMPLATE/feature_request.yml(各仓有特化字段)
 #   - 条件分发:
 #       deploy-docs.yml 仅当目标有 website/ 目录
+#       native-lint.yml + nightly-build-check.yml + .clang-format 仅当目标有手写 native 源码(.kt/.mm)
 #   - release.yml 的 on.push.paths:目标有 *.podspec → native paths,否则 JS-only paths
 #
 # 变量替换:
@@ -75,12 +76,23 @@ if ls "$TARGET"/*.podspec >/dev/null 2>&1; then HAS_PODSPEC=true; fi
 HAS_WEBSITE=false
 if [[ -d "$TARGET/website" ]]; then HAS_WEBSITE=true; fi
 
+# 是否有「手写 native 源码」—— 决定 native-lint.yml / .clang-format / nightly-build-check.yml 下不下发。
+# 只看库本体的 android/src + ios/(crnl 布局下 example app 的 native 在 example/ 下,不会误命中)。
+# 判据用源码而非 *.podspec:design 纯 JS 但可能有壳 podspec,而 native lint 只对真有 .kt/.mm 的仓有意义。
+HAS_NATIVE_SRC=false
+if find "$TARGET/android/src" "$TARGET/ios" -type f \
+     \( -name '*.kt' -o -name '*.kts' -o -name '*.mm' -o -name '*.m' -o -name '*.cpp' -o -name '*.h' \) \
+     2>/dev/null | grep -q .; then
+  HAS_NATIVE_SRC=true
+fi
+
 echo "→ 同步 templates → $REPO"
-echo "  target    : $TARGET"
-echo "  npm pkg   : $NPM_PKG"
-echo "  pages url : $PAGES_URL"
-echo "  native    : $HAS_PODSPEC (有 *.podspec)"
-echo "  website   : $HAS_WEBSITE"
+echo "  target     : $TARGET"
+echo "  npm pkg    : $NPM_PKG"
+echo "  pages url  : $PAGES_URL"
+echo "  podspec    : $HAS_PODSPEC"
+echo "  native src : $HAS_NATIVE_SRC (有 .kt/.mm → 下发 native-lint + .clang-format + nightly)"
+echo "  website    : $HAS_WEBSITE"
 echo ""
 
 # ── 工具函数 ──────────────────────────────────────────────────────────
@@ -188,6 +200,19 @@ if $HAS_WEBSITE; then
   render workflows/deploy-docs.yml            .github/workflows/deploy-docs.yml
 else
   echo "  ⊘ 目标无 website/,跳过 deploy-docs.yml"
+fi
+echo ""
+
+# ── 3b. native lint / nightly(仅有手写 native 源码的仓)────────────────
+echo "→ [3b] native lint / nightly build-check(条件分发)"
+if $HAS_NATIVE_SRC; then
+  # native-lint.yml 是 required check —— 配套的 lint-cpp/lint-kotlin 会被 setup-repo.sh
+  # 自动加进 8-check ruleset。.clang-format 放仓库根,clang-format 自动发现。
+  render workflows/native-lint.yml            .github/workflows/native-lint.yml
+  render workflows/nightly-build-check.yml    .github/workflows/nightly-build-check.yml
+  render .clang-format                        .clang-format
+else
+  echo "  ⊘ 目标无 native 源码(.kt/.mm),跳过 native-lint / nightly / .clang-format"
 fi
 echo ""
 
