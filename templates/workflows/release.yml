@@ -54,12 +54,14 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
-permissions:
-  contents: write       # 兜底;实际 push 走下面的 App token(GITHUB_TOKEN 进不了受保护 main)
-  id-token: write       # npm Trusted Publishing(OIDC)+ provenance attestations
+# workflow 级零授权 —— 权限收窄到真正需要的 release job(显式最小权限边界)。
+permissions: {}
 
 jobs:
   release:
+    permissions:
+      contents: write     # 兜底;实际 push 走下面的 App token(GITHUB_TOKEN 进不了受保护 main)
+      id-token: write     # npm Trusted Publishing(OIDC)+ provenance attestations
     # 兜底防自触发循环:push 上来的若是 release-it 自己推的 "chore: release" commit 直接 skip。
     # 主防线是该 commit 带 [skip ci](push 会被 Actions 跳过);这里是第二道,防 [skip ci] 失效。
     # workflow_dispatch 无 head_commit,前半条件 true 短路 → 手动发版照常,不受影响。
