@@ -4,7 +4,9 @@
 # 占位符(sync-repo.sh 替换):
 #   {{REPO}}      → repo 名(如 react-native-design)
 #   下方 on.push.paths 里的 RELEASE_PATHS 标记由脚本按目标仓有无 *.podspec 注入:
-#   native 仓(有 *.podspec)含 ios/android/podspec,纯 JS 仓只含 src/scripts/package。
+#   native 仓(有 *.podspec)含 src/ios/android/podspec,纯 JS 仓含 src/scripts。
+#   故意不含 package.json/yarn.lock —— 加 website workspace / 升依赖会连带改根 package.json+yarn.lock,
+#   纯 docs/website/依赖变更不该触发发版;要发依赖升级版走手动 workflow_dispatch。
 name: Release
 
 # 手动触发的发版工作流 —— 在 GitHub Actions 页面点 "Run workflow" 选版本类型即可。
@@ -30,9 +32,9 @@ on:
   push:
     branches: [main]
     paths:
-      # 只在源码 / 脚本 / 包配置改动时触发;改 docs / example / CI 配置不发版。
-      # release-it 看 conventional commits 自己决定要不要发 + bump 类型,
-      # 这层 paths 过滤只是省 CI 资源,不是行为兜底。
+      # 只在库源码改动时触发;改 docs / website / 依赖锁 / example / CI 配置不触发发版。
+      # 不含 package.json/yarn.lock —— website workspace 登记 + 依赖升级都改它们,不该触发 release。
+      # release-it 看 conventional commits 决定要不要发 + bump,这层 paths 只是省 CI、不是行为兜底。
       {{RELEASE_PATHS}}
   workflow_dispatch:
     inputs:

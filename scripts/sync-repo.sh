@@ -169,15 +169,11 @@ if $HAS_PODSPEC; then
     "      - 'src/**'" \
     "      - 'ios/**'" \
     "      - 'android/**'" \
-    "      - '*.podspec'" \
-    "      - 'package.json'" \
-    "      - 'yarn.lock'" > "$PATHS_TMP"
+    "      - '*.podspec'" > "$PATHS_TMP"
 else
   printf "%s\n" \
     "      - 'src/**'" \
-    "      - 'scripts/**'" \
-    "      - 'package.json'" \
-    "      - 'yarn.lock'" > "$PATHS_TMP"
+    "      - 'scripts/**'" > "$PATHS_TMP"
 fi
 mkdir -p "$TARGET/.github/workflows"
 subst < "$TEMPLATES_DIR/workflows/release.yml" \

@@ -98,7 +98,7 @@ cd /path/to/unif-design/.github
 | **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `dependabot.yaml` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
 | **条件分发(native)** | `native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 仅当目标有手写 native 源码(`HAS_NATIVE_SRC`,见下),即 umeng / hms-scan |
-| **按 native/JS** | `release.yml` 的 `on.push.paths` | 目标有 `*.podspec` → 含 `ios/android/podspec`;纯 JS → 只含 `src/scripts/package` |
+| **按 native/JS** | `release.yml` 的 `on.push.paths` | 目标有 `*.podspec` → `src/ios/android/podspec`;纯 JS → `src/scripts`。**均不含 package.json/yarn.lock**(workspace 登记 + 依赖升级会连带改它们,不该触发发版)|
 
 > 为什么 `.pr_agent.toml` / `dependabot.yaml` 不强制覆盖:它们带各仓特有规则(review prompt / 依赖分组,且 dependabot 分组**顺序敏感**)。强制覆盖会抹掉特化。改这类文件走「模板是 base,各仓在 base 上手加特化」,sync 只补缺、不动已有。
 

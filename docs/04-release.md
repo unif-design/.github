@@ -10,11 +10,9 @@
 on:
   push:
     branches: [main]
-    paths:
+    paths:                       # sync 按 native/JS 注入;native 仓为 src/ios/android/podspec
       - 'src/**'
-      - 'scripts/**'
-      - 'package.json'
-      - 'yarn.lock'
+      - 'scripts/**'             # 故意不含 package.json/yarn.lock —— website workspace 登记 + 依赖升级会连带改它们,不该触发发版(走手动 dispatch)
   workflow_dispatch:
     inputs:
       increment:
@@ -168,6 +166,8 @@ on:
 > ⚠️ **这是修好 App token push 之后才会暴露的坑,务必和 App token 一起配。**
 
 **根因**:release-it 推回 main 的 `chore: release` commit 改了 `package.json`,正好命中 `release.yml` 的 `paths:`(含 `package.json`)→ 再次触发 `release.yml` → 再发一版 → 再 push → …… **无限发版**(react-native-design 实测刷出了 `0.4.0`~`0.4.33` 几十个空版本)。
+
+> **2026-06 更新**:`package.json`/`yarn.lock` 已从 `release.yml` 的 `paths` 移除(它们会被 website workspace 登记 + 依赖升级连带改动,不该触发发版),`chore: release` commit 不再命中 paths → **这个根因已从源头堵死**。下面三道防线仍保留作冗余兜底(尤其手动 dispatch / src 改动场景)。
 
 **关键反直觉点**:在用 App token 修好 push 之前,这个循环**一直没发生** —— 因为 release commit 的 push 被 ruleset 拦住了(根本推不上去)。是 App token 让 CI 能写回受保护分支,**反而打开了死循环的闸门**。所以:
 
