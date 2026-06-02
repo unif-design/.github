@@ -5,8 +5,15 @@
 # native 编译 breakage。对标 reanimated 的 nightly build-check。
 #
 # 【advisory canary —— 非 required check】:cron 触发,失败只通知不卡 PR。
-# 镜像 ci.yml 的 build-ios / build-android(同 Xcode / JDK / turbo 任务),
-# 但把 example app 的 react-native 升到 `next` dist-tag(RC 预发布)再构建。
+# 镜像 ci.yml 的 build job,但把 example app 的 react-native 升到 `next` dist-tag 再构建。
+#
+# 【job 名必须带 -next 后缀】:GitHub 的 required status check 按 job 名(context)匹配。
+# 若叫 build-ios / build-android 会和 ci.yml 撞名 —— 本 canary 的 job 被 ruleset 当成
+# required、且在 PR 上和 CI 重复跑同一个 example 构建。所以用 build-ios-next /
+# build-android-next 区分。
+#
+# 【PR 上只验语法不 build】:pull_request 触发只为校验本 workflow 改动(detect 跑一下),
+# build job 加 `github.event_name != 'pull_request'` 守卫,真正构建只在 cron / dispatch。
 #
 # 【低噪音设计】:仅当 react-native 有 `next` tag(RC 窗口期)时才真正构建;
 # 多数时间无 RC → detect 输出空 → build job 整体 skip(绿),不产生噪音红灯。
@@ -42,15 +49,20 @@ jobs:
         run: |
           if npm view react-native dist-tags --json | grep -q '"next"'; then
             NEXT="$(npm view react-native dist-tags.next)"
-            echo "react-native@next = $NEXT"
-            echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+            # 校验是严格 semver,防 registry 被篡改 / 返回异常 payload 注入下游 yarn up。
+            if [[ "$NEXT" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "react-native@next = $NEXT"
+              echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+            else
+              echo "next tag 非法 semver:'$NEXT',跳过"
+            fi
           else
             echo "当前无 react-native@next(无 RC 窗口),跳过构建"
           fi
 
-  build-ios:
+  build-ios-next:
     needs: detect
-    if: needs.detect.outputs.next != ''
+    if: needs.detect.outputs.next != '' && github.event_name != 'pull_request'
     runs-on: macos-26
     env:
       XCODE_VERSION: "26.5"
@@ -83,9 +95,9 @@ jobs:
       - name: Build example for iOS
         run: yarn turbo run build:ios
 
-  build-android:
+  build-android-next:
     needs: detect
-    if: needs.detect.outputs.next != ''
+    if: needs.detect.outputs.next != '' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
