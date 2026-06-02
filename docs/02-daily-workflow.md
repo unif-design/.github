@@ -83,7 +83,7 @@ PR template(`.github/PULL_REQUEST_TEMPLATE.md`)自动套上,填:
 | `CI / build-android` | turbo 跑 example android 编译 | ✅ |
 | `CI / build-ios` | turbo 跑 example iOS 编译(macos-latest)| ✅ |
 
-ruleset 配了 6 个 check 为 required,缺一不可。
+ruleset 配了 6 个 check 为 required,缺一不可。**native 仓**(umeng / hms-scan)另有 `native-lint.yml` 的 `CI / lint-cpp`(clang-format)+ `CI / lint-kotlin`(ktlint)两个 required check = 共 8 个(见 [CI workflow → native lint](./03-ci.md))。
 
 ### 7. self-review + Squash and merge
 

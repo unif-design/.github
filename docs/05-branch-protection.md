@@ -27,6 +27,7 @@
 - ✅ **Require status checks to pass**:
   - ✅ Require branches to be up to date
   - Required checks 加这 6 个:`actionlint`、`lint`、`test`、`build-library`、`build-android`、`build-ios`
+  - **native 仓**(umeng / hms-scan,有 `native-lint.yml`)再多 `lint-cpp`、`lint-kotlin` 两个 = 共 8 个(见下方「两份 ruleset」)
   - **不加 `pr_agent`**(AI review 是参考性,不该 gate merge)
 - ✅ **Block force pushes**
 
@@ -35,6 +36,17 @@
 - ❌ Restrict creations / updates(会拦 release-it bot)
 - ❌ Require signed commits(没配 GPG)
 - ❌ Require linear history / merge queue / signed commits(用不上)
+
+### 两份 ruleset(6-check / 8-check)
+
+`scripts/rulesets/` 下有两份 ruleset JSON,`setup-repo.sh` 按仓自动选:
+
+| 文件 | required checks | 适用 |
+|---|---|---|
+| `protect-main.json` | 6 个(`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios`)| 非 native 仓(design 纯 JS / camera 无自有 native)|
+| `protect-main-native.json` | 8 个(上面 6 个 + `lint-cpp` + `lint-kotlin`)| native 仓(umeng / hms-scan,有手写 `.kt/.mm`)|
+
+判据自洽:`setup-repo.sh` 检测 repo 里有没有 `.github/workflows/native-lint.yml` —— 有它 ⟺ 有那两个 check ⟺ 套 8-check 版,否则 6-check 版(`native-lint.yml` 由 `sync-repo.sh` 仅下发给 native 仓)。
 
 ### 发版 bot 进 bypass
 

@@ -23,7 +23,7 @@
        ▼
    GitHub UI 开 PR(PR template 自动套)
        │
-       │ CI 自动跑 6 个 check
+       │ CI 自动跑 6 个 check(native 仓 8 个,多 lint-cpp/lint-kotlin)
        ▼
    ┌─────────────────┐
    │ Branch protection│  阻止直接 push main

@@ -19,7 +19,7 @@
 
 | # | 章节 | 一句话 |
 |---|---|---|
-| 3 | [CI workflow](docs/03-ci.md) | `changes` 门控 + 6 个 required job(actionlint / lint / test / build×3)+ pin SHA + 缓存策略 |
+| 3 | [CI workflow](docs/03-ci.md) | `changes` 门控 + 6 个 required job(actionlint / lint / test / build×3;native 仓另加 native-lint 的 lint-cpp / lint-kotlin = 8)+ nightly RN-next canary + pin SHA + 缓存策略 |
 | 4 | [发版机制](docs/04-release.md) | `release.yml` + release-it + 两套凭据(OIDC publish + App token push)+ 防发版死循环 |
 | 5 | [Branch protection (Rulesets)](docs/05-branch-protection.md) | Ruleset 4 项 + 发版 App 进 bypass + Repo Settings 配套勾选项 |
 | 6 | [依赖管理 (Dependabot)](docs/06-dependencies.md) | 配置 / PR SOP / `@dependabot` 命令 / major 升级 case-by-case |

@@ -156,7 +156,7 @@ fetch-metadata 拿升级类型 → patch
    ↓
 gh pr merge --auto --squash → GitHub auto-merge enabled
    ↓
-GitHub 等 CI 6 个 check 全绿 + 其他 ruleset 满足
+GitHub 等 CI required check 全绿 + 其他 ruleset 满足
    ↓
 全部满足 → GitHub 自动 squash merge
    ↓

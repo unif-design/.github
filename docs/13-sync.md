@@ -33,7 +33,10 @@ templates/
 │   ├── pr-title.yml               # conventional-commits 标题校验
 │   ├── pr-agent.yml               # caller,uses unif-design/.github 的 reusable workflow
 │   ├── dependabot-auto-merge.yml  # 统一文件名 + approve 增强
-│   └── deploy-docs.yml            # 仅有 website/ 的仓
+│   ├── deploy-docs.yml            # 仅有 website/ 的仓
+│   ├── native-lint.yml            # 仅 native 仓:lint-cpp(clang-format)+ lint-kotlin(ktlint),required check
+│   └── nightly-build-check.yml    # 仅 native 仓:RN-next build canary,advisory(非 required)
+├── .clang-format                  # 仅 native 仓:LLVM/2/120 最小稳定选项
 ├── dependabot.yaml                # 基础版
 ├── lefthook.yml
 ├── pr_agent.toml                  # → .pr_agent.toml 基础版
@@ -57,7 +60,7 @@ templates/
 | build-ios `macos-26` + `XCODE_VERSION: 26.5` + `RCT_USE_PREBUILT_RNCORE=1` | umeng / hms-scan | 26.5 修好 codegen `'memory' file not found`;prebuilt 省源码编译 5-10 分钟 |
 | `setup-xcode` pin v1.7.0(`ed7a3b1...`) | design / camera | 最新可用 pin |
 
-6 个 required check:`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios`。`changes` 永远 success、**不**进 required checks。
+6 个 required check:`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios`。`changes` 永远 success、**不**进 required checks。**native 仓**(umeng / hms-scan)另发 `native-lint.yml`,再加 `lint-cpp` / `lint-kotlin` = 8 个(见下方覆盖策略的「条件分发」)。
 
 ## 用法
 
@@ -94,9 +97,12 @@ cd /path/to/unif-design/.github
 | **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
 | **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `dependabot.yaml` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
+| **条件分发(native)** | `native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 仅当目标有手写 native 源码(`HAS_NATIVE_SRC`,见下),即 umeng / hms-scan |
 | **按 native/JS** | `release.yml` 的 `on.push.paths` | 目标有 `*.podspec` → 含 `ios/android/podspec`;纯 JS → 只含 `src/scripts/package` |
 
 > 为什么 `.pr_agent.toml` / `dependabot.yaml` 不强制覆盖:它们带各仓特有规则(review prompt / 依赖分组,且 dependabot 分组**顺序敏感**)。强制覆盖会抹掉特化。改这类文件走「模板是 base,各仓在 base 上手加特化」,sync 只补缺、不动已有。
+
+> **`HAS_NATIVE_SRC` 判据**:`sync-repo.sh` 用 `find` 看库本体的 `android/src` + `ios/` 下有没有手写 `.kt/.kts/.mm/.m/.cpp/.h`(crnl 布局下 example app 的 native 在 `example/` 下,不会误命中)。命中才下发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`。判据用源码而非 `*.podspec`:design 纯 JS 但可能有壳 podspec,而 native lint 只对真有 `.kt/.mm` 的仓有意义。`react-native-camera`(vision-camera wrapper,无自有 native)同理不下发。
 
 ## 改了标准之后
 
