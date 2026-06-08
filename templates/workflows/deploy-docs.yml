@@ -14,8 +14,7 @@ name: Deploy Docs
 #
 # 触发:
 #   - push:main 且改了 website/src/package 等
-#   - release:published —— 发版后(release commit 带 [skip ci] 不触发 push)补部署刷新版本号
-#   - 手动 workflow_dispatch
+#   - 手动 workflow_dispatch / release.yml 发版成功后 dispatch(跑 main,绕开 release 事件的 tag ref)
 
 on:
   push:
@@ -26,12 +25,9 @@ on:
       - 'package.json'
       - 'yarn.lock'
       - '.github/workflows/deploy-docs.yml'
-  # release-it 发版的 commit 带 [skip ci](见 release.yml),上面的 push 会被 Actions 跳过;
-  # 但 navbar 版本号读根 package.json,要重新构建才更新。release.yml 用 App token 创建
-  # GitHub Release(github.release:true),App token 触发的 event 能触发新 workflow ——
-  # 故监听 release:published 补上「发版 → 文档站版本更新」这条被 [skip ci] 断掉的链。
-  release:
-    types: [published]
+  # 发版后由 release.yml 在 release job 成功后显式 dispatch 本 workflow(跑 main)刷新版本号。
+  # 不用 on.release —— release 事件的 ref 是 tag(v*),deploy job 会被 GitHub Pages environment
+  # 的「仅 main」部署分支策略拒(实测 [release] 触发的 deploy 在 v* tag 上 failure)。见 release.yml。
   workflow_dispatch:
 
 permissions:
