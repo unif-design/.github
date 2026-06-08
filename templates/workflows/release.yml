@@ -64,6 +64,7 @@ jobs:
     permissions:
       contents: write     # 兜底;实际 push 走下面的 App token(GITHUB_TOKEN 进不了受保护 main)
       id-token: write     # npm Trusted Publishing(OIDC)+ provenance attestations
+      actions: write      # 发版后 gh workflow run dispatch deploy-docs(workflow_dispatch 是 GITHUB_TOKEN 防递归的例外)
     # 兜底防自触发循环:push 上来的若是 release-it 自己推的 "chore: release" commit 直接 skip。
     # 主防线是该 commit 带 [skip ci](push 会被 Actions 跳过);这里是第二道,防 [skip ci] 失效。
     # workflow_dispatch 无 head_commit,前半条件 true 短路 → 手动发版照常,不受影响。
@@ -134,4 +135,20 @@ jobs:
             npx release-it "$INCREMENT" --ci
           else
             npx release-it --ci
+          fi
+
+      # 发版成功后显式触发文档部署 —— dispatch 跑 main。
+      # 不靠 deploy-docs 监听 release event:release 事件的 ref 是 tag(v*),而 GitHub Pages
+      # environment 的部署分支策略只放行 main → tag 上的 deploy job 必被拒(实测 [release] 触发的
+      # deploy 在 v0.3.0 上 failure)。workflow_dispatch 跑 main 绕开,且它是 GITHUB_TOKEN 防自触发
+      # 递归的例外(能触发新 run)。非 website 仓无此 workflow,容错跳过、不让发版失败。
+      - name: Trigger docs deploy
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh workflow run deploy-docs.yml --ref main 2>/dev/null; then
+            echo "✓ 已 dispatch deploy-docs(main)"
+          else
+            echo "无 deploy-docs.yml(非 website 仓)或 dispatch 失败,跳过"
           fi
