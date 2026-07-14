@@ -59,7 +59,7 @@ on:
 | npm 端 trusted publisher | npmjs.com → 包 Settings → Publishing access → Trusted Publishers,绑定 `unif-design/react-native-design` 的 `release.yml` |
 | **不要**配 NPM_TOKEN secret | 走 OIDC 完全没有 long-lived token |
 | `package.json#release-it.npm.skipChecks: true` | **必须** —— 跳过 `npm whoami` 预检查(OIDC 没持久登录)|
-| `npm install -g npm@latest` step | **必须** —— OIDC 要求 npm CLI ≥ 11.5.1 |
+| `npm install -g "npm@^11"` step | **必须** —— OIDC 要求 npm CLI ≥ 11.5.1。**别写 `npm@latest`**:npm 的 engines 下限会先于 `.nvmrc` 钉的 node 往前跳,一跳就全组织发版同时断(2026-07-14 实测 npm@12 要 node ≥ 24.15,runner 是 24.13 → EBADENGINE)|
 
 ### push 回受保护 main —— 用 GitHub App token
 
@@ -120,7 +120,7 @@ on:
 1. **Generate App token** —— `actions/create-github-app-token`,产出 ~1h 过期、scope 限本 repo 的 token
 2. Checkout(`fetch-depth: 0` → release-it 算 changelog 要全历史;`token:` 用 App token)
 3. `./.github/actions/setup` —— Node + yarn install + cache
-4. **Upgrade npm CLI** —— `npm install -g npm@latest`
+4. **Upgrade npm CLI** —— `npm install -g "npm@^11"`(锁 11.x,不追 npm 的 engines 漂移;理由见上表)
 5. Verify —— `yarn lint && yarn typecheck && yarn test`(发版 gate)
 6. Resolve App bot identity —— 反查 bot user id 拼 verified 邮箱
 7. Configure git —— git user 设为 App bot(`unif-release-bot[bot]`)

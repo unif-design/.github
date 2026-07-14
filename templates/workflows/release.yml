@@ -90,9 +90,18 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # npm Trusted Publishing 需要 npm CLI ≥ 11.5.1;.nvmrc 的 node 24 自带的 npm 可能不够新。
+      # npm Trusted Publishing 需要 npm CLI ≥ 11.5.1;.nvmrc 的 node 自带的 npm 未必够新,故在此抬一手。
+      #
+      # **不要写 npm@latest** —— npm 的 engines 下限会先于我们 .nvmrc 里钉死的 node 版本往前跳,
+      # 一跳就是全组织发版同时断。2026-07-14 实测:npm@latest 滚到 12.0.1,engines 要求
+      # node ^22.22.2 || ^24.15.0 || >=26,而 runner 按 .nvmrc 装的是 node 24.13.0 →
+      # `npm i -g npm@latest` 直接 EBADENGINE/notsup 挂掉,五个仓的 release 全灭。
+      # (且那次根本不需要升:node 24.13 自带 npm 11.6.2,早就过了 11.5.1 这条线。)
+      #
+      # 锁在 11.x:既保住 OIDC 下限,又不追 npm 的 engines 漂移。将来 Trusted Publishing 真要
+      # npm ≥ 12 了,再把 .nvmrc 的 node 一起抬上去、同批改这里。
       - name: Upgrade npm CLI (required for OIDC)
-        run: npm install -g npm@latest
+        run: npm install -g "npm@^11"
 
       - name: Verify
         run: |
