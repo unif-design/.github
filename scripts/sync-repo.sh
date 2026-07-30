@@ -162,8 +162,15 @@ echo ""
 
 # ── 1b. 共享 Agent 标准(marker 级覆盖,保留仓库规则)───────────────────
 echo "→ [1b] 同步共享 Agent 标准(marker 级覆盖)"
-"$SCRIPT_DIR/sync-agent-standards.sh" "$REPO" "$TARGET"
-echo "  ✓ AGENTS.md 共享区块(保留仓库特有规则)"
+case "$REPO" in
+  react-native-camera|react-native-design|react-native-hms-scan|react-native-umeng)
+    "$SCRIPT_DIR/sync-agent-standards.sh" "$REPO" "$TARGET"
+    echo "  ✓ AGENTS.md 共享区块(保留仓库特有规则)"
+    ;;
+  *)
+    echo "  ⊘ 非共享 Agent 标准目标仓,跳过 AGENTS.md"
+    ;;
+esac
 echo ""
 
 # ── 2. release.yml(按 native/JS 决定 paths)────────────────────────

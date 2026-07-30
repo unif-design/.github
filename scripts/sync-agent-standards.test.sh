@@ -4,11 +4,14 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sync_script="$script_dir/sync-agent-standards.sh"
+full_sync_script="$script_dir/sync-repo.sh"
 workspace="$(mktemp -d)"
 target="$workspace/react-native-camera"
 bad_target="$workspace/bad-marker"
 duplicate_target="$workspace/duplicate-marker"
 reverse_target="$workspace/reverse-marker"
+other_target="$workspace/example-repo"
+other_output="$workspace/example-repo-sync.log"
 
 cleanup() {
   rm -rf "$workspace"
@@ -25,7 +28,7 @@ file_hash() {
 
 trap cleanup EXIT
 
-mkdir -p "$target" "$bad_target" "$duplicate_target" "$reverse_target"
+mkdir -p "$target" "$bad_target" "$duplicate_target" "$reverse_target" "$other_target"
 
 cat >"$target/AGENTS.md" <<'EOF'
 # React Native Camera
@@ -164,5 +167,28 @@ for mapping in \
   grep -Fq "\`$repo\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 repo 映射"
   grep -Fq "\`../skills/skills/$skill/\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 Skill 映射"
 done
+
+# 非四仓仍可使用全量同步,但不得注入 React Native 共享 Agent 区块。
+cat >"$other_target/AGENTS.md" <<'EOF'
+# Example Repo
+
+## 本仓规则
+
+保留非目标仓本地正文。
+EOF
+
+cat >"$other_target/package.json" <<'EOF'
+{"name":"example-repo"}
+EOF
+
+if ! bash "$full_sync_script" example-repo "$other_target" >"$other_output"; then
+  fail '非目标仓全量同步退出非零'
+fi
+if grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$other_target/AGENTS.md"; then
+  fail '非目标仓被插入共享 marker'
+fi
+grep -Fq '## 本仓规则' "$other_target/AGENTS.md" || fail '非目标仓本地标题被覆盖'
+grep -Fq '保留非目标仓本地正文。' "$other_target/AGENTS.md" || fail '非目标仓本地正文被覆盖'
+grep -Fq '非共享 Agent 标准目标仓,跳过 AGENTS.md' "$other_output" || fail '非目标仓未明确报告跳过共享 Agent 标准'
 
 printf 'PASS: sync-agent-standards contract\n'
