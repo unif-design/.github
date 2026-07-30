@@ -33,9 +33,23 @@ package_file="$target_dir/package.json"
 actual_package="$(node -e 'const fs = require("fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).name || "")' "$package_file")" || exit 1
 [[ "$actual_package" == "$package" ]] || exit 1
 
-begin_count="$(grep -Fxc "$begin_marker" "$agents_file" || true)"
-end_count="$(grep -Fxc "$end_marker" "$agents_file" || true)"
-if [[ "$begin_count" != "$end_count" || "$begin_count" -gt 1 ]]; then
+if ! begin_count="$(awk -v begin="$begin_marker" -v end="$end_marker" '
+  $0 == begin {
+    begin_count++
+    if (state != 0) invalid = 1
+    state = 1
+    next
+  }
+  $0 == end {
+    end_count++
+    if (state != 1) invalid = 1
+    state = 2
+  }
+  END {
+    if (invalid || begin_count != end_count || begin_count > 1 || state == 1) exit 1
+    print begin_count
+  }
+' "$agents_file")"; then
   exit 1
 fi
 
