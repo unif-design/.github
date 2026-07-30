@@ -19,6 +19,8 @@
 #       .github/workflows/{ci,release,pr-title,pr-agent,dependabot-auto-merge}.yml
 #       lefthook.yml / SECURITY.md
 #       .github/ISSUE_TEMPLATE/{bug_report,config}.yml
+#   - marker 级覆盖(共享标准,保留仓库特有规则):
+#       AGENTS.md 内的 UNIF React Native Standard 共享区块
 #   - 仅当目标【不存在】时创建(保留各仓 repo 特化,不覆盖):
 #       .github/PULL_REQUEST_TEMPLATE.md(各仓有特化 checklist,如 umeng 微信分享项)
 #       .github/dependabot.yaml(各仓有特化分组)
@@ -156,6 +158,12 @@ render lefthook.yml                           lefthook.yml
 render SECURITY.md                            SECURITY.md
 render ISSUE_TEMPLATE/bug_report.yml          .github/ISSUE_TEMPLATE/bug_report.yml
 render ISSUE_TEMPLATE/config.yml              .github/ISSUE_TEMPLATE/config.yml
+echo ""
+
+# ── 1b. 共享 Agent 标准(marker 级覆盖,保留仓库规则)───────────────────
+echo "→ [1b] 同步共享 Agent 标准(marker 级覆盖)"
+"$SCRIPT_DIR/sync-agent-standards.sh" "$REPO" "$TARGET"
+echo "  ✓ AGENTS.md 共享区块(保留仓库特有规则)"
 echo ""
 
 # ── 2. release.yml(按 native/JS 决定 paths)────────────────────────

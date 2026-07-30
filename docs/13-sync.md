@@ -17,7 +17,7 @@
 | 脚本 | 管什么 | 怎么实现 |
 |---|---|---|
 | `setup-repo.sh <repo>` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | `gh api` PATCH/PUT,改 GitHub 服务端 |
-| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / dependabot / lefthook / PR&Issue 模板 / SECURITY | 拷贝 `templates/` + 变量替换,改目标仓工作树 |
+| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / dependabot / lefthook / PR&Issue 模板 / SECURITY / 共享 Agent 标准 | 拷贝 `templates/` + 变量替换,并调用 marker 级 Agent 同步,改目标仓工作树 |
 
 两者互补:先 `sync-repo.sh` 把 `ci.yml` 等文件 commit 进 repo + 跑过一次(GitHub 索引 check 名),再 `setup-repo.sh` 配 ruleset(required checks 才挂得上)。
 
@@ -42,6 +42,7 @@ templates/
 ├── pr_agent.toml                  # → .pr_agent.toml 基础版
 ├── SECURITY.md
 ├── PULL_REQUEST_TEMPLATE.md
+├── AGENTS.md                     # React Native 共享 Agent 标准区块唯一真相源
 └── ISSUE_TEMPLATE/
     ├── bug_report.yml
     ├── config.yml
@@ -78,7 +79,7 @@ cd /path/to/unif-design/.github
 ./scripts/sync-repo.sh react-native-hms-scan
 ```
 
-脚本**只改目标仓工作树,不 commit / 不 push** —— 跑完报告 `git status` + `git diff --stat`,改动留给你 review,各仓自己开 PR。
+脚本**只改目标仓工作树,不 commit / 不 push** —— 跑完报告 `git status` + `git diff --stat`,改动留给你 review,各仓自己开 PR。全量 `sync-repo.sh` 会调用 `sync-agent-standards.sh`;后者也不 commit / 不 push。
 
 ## 变量替换
 
@@ -95,12 +96,15 @@ cd /path/to/unif-design/.github
 | 类别 | 文件 | 行为 |
 |---|---|---|
 | **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
+| **marker 级覆盖** | 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享区块 | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是该共享区块唯一真相源,marker 外的仓库特有规则保留 |
 | **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `dependabot.yaml` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
 | **条件分发(native)** | `native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 仅当目标有手写 native 源码(`HAS_NATIVE_SRC`,见下),即 umeng / hms-scan |
 | **按 native/JS** | `release.yml` 的 `on.push.paths` | 目标有 `*.podspec` → `src/ios/android/podspec`;纯 JS → `src/scripts`。**均不含 package.json/yarn.lock**(workspace 登记 + 依赖升级会连带改它们,不该触发发版)|
 
 > 为什么 `.pr_agent.toml` / `dependabot.yaml` 不强制覆盖:它们带各仓特有规则(review prompt / 依赖分组,且 dependabot 分组**顺序敏感**)。强制覆盖会抹掉特化。改这类文件走「模板是 base,各仓在 base 上手加特化」,sync 只补缺、不动已有。
+
+> 为什么 `AGENTS.md` 不整文件强制覆盖:根文件还承载各仓特有规则。`sync-agent-standards.sh` 只刷新共享 marker 区块;缺少、重复或倒序 marker 时会拒绝写入,避免误伤本地规则。需要只更新 Agent 标准时,可独立运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`。
 
 > **`HAS_NATIVE_SRC` 判据**:`sync-repo.sh` 用 `find` 看库本体的 `android/src` + `ios/` 下有没有手写 `.kt/.kts/.mm/.m/.cpp/.h`(crnl 布局下 example app 的 native 在 `example/` 下,不会误命中)。命中才下发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`。判据用源码而非 `*.podspec`:design 纯 JS 但可能有壳 podspec,而 native lint 只对真有 `.kt/.mm` 的仓有意义。`react-native-camera`(vision-camera wrapper,无自有 native)同理不下发。
 
