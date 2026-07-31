@@ -104,13 +104,13 @@ cd /path/to/unif-design/.github
 
 > 为什么 `.pr_agent.toml` / `dependabot.yaml` 不强制覆盖:它们带各仓特有规则(review prompt / 依赖分组,且 dependabot 分组**顺序敏感**)。强制覆盖会抹掉特化。改这类文件走「模板是 base,各仓在 base 上手加特化」,sync 只补缺、不动已有。
 
-> 为什么四仓的 `AGENTS.md` 不整文件强制覆盖:根文件还承载各仓特有规则。`sync-agent-standards.sh` 只刷新共享 marker 区块;零 marker 时在 H1 后首次插入,只缺一侧、重复或倒序时拒绝写入,避免误伤本地规则。需要只更新四仓 Agent 标准时,可独立运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`;非四仓不应用此共享区块。
+> 为什么四仓的 `AGENTS.md` 不整文件强制覆盖:根文件还承载各仓特有规则。`sync-agent-standards.sh` 只刷新共享 marker 区块;零 marker 时在 H1 后首次插入,只缺一侧、重复或倒序时拒绝写入,避免误伤本地规则。这里的“保留”只保证正文不被脚本覆盖,不证明旧说明仍正确;同步后必须对照当前代码、类型、测试、依赖、有效文档与已批准规格审查 marker 外正文。需要只更新四仓 Agent 标准时,可独立运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`;非四仓不应用此共享区块。
 
 > **`HAS_NATIVE_SRC` 判据**:`sync-repo.sh` 用 `find` 看库本体的 `android/src` + `ios/` 下有没有手写 `.kt/.kts/.mm/.m/.cpp/.h`(crnl 布局下 example app 的 native 在 `example/` 下,不会误命中)。命中才下发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`。判据用源码而非 `*.podspec`:design 纯 JS 但可能有壳 podspec,而 native lint 只对真有 `.kt/.mm` 的仓有意义。`react-native-camera`(vision-camera wrapper,无自有 native)同理不下发。
 
 ## 改了标准之后
 
-改 CI / 发版标准 → 改 `unif-design/.github` 的 `templates/` → 对每个仓跑一遍 `sync-repo.sh <repo>` → review diff → 各仓 PR。**不要直接改某个仓的 `ci.yml`**(下次 sync 会被覆盖,且制造 drift)。
+改 CI / 发版标准 → 改 `unif-design/.github` 的 `templates/` → 对每个仓跑一遍 `sync-repo.sh <repo>` → review diff → 对四仓另审查 marker 外 `AGENTS.md` 语义 → 各仓 PR。**不要直接改某个仓的 `ci.yml`**(下次 sync 会被覆盖,且制造 drift)。
 
 `pr-agent.yml` 是 caller,`uses: ...@main` 引用 org reusable workflow —— 改 reusable 逻辑(`.github/.github/workflows/pr-agent.yml`)对所有仓**立即**生效,不需要 sync。
 
