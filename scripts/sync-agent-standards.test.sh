@@ -6,6 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sync_script="$script_dir/sync-agent-standards.sh"
 full_sync_script="$script_dir/sync-repo.sh"
 template="$script_dir/../templates/AGENTS.md"
+canonical_template_sha256='20ef13f2692eac0ff1f2e65494e4d4a22a443820c405d163962671cb3f63adea'
 begin_marker='<!-- BEGIN UNIF REACT NATIVE STANDARD -->'
 end_marker='<!-- END UNIF REACT NATIVE STANDARD -->'
 workspace="$(mktemp -d)"
@@ -86,11 +87,16 @@ assert_managed_marker_exact() {
 }
 
 assert_short_bootstrap_template() {
+  local actual_template_sha256
   local h2_count
   local step_count
   local line_count
   local step_number
   local stale_fragment
+
+  actual_template_sha256="$(shasum -a 256 "$template" | awk '{print $1}')"
+  [[ "$actual_template_sha256" == "$canonical_template_sha256" ]] ||
+    fail "canonical 短 bootstrap 被修改:expected=$canonical_template_sha256 actual=$actual_template_sha256;必须显式审查并更新契约"
 
   h2_count="$(awk '/^## / { count++ } END { print count + 0 }' "$template")"
   [[ "$h2_count" -eq 1 ]] ||
