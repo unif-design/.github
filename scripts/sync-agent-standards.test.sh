@@ -64,6 +64,8 @@ bash "$sync_script" react-native-camera "$target"
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$target/AGENTS.md" || fail '未插入 BEGIN marker'
 grep -Fq "\`react-native-camera\`" "$target/AGENTS.md" || fail '未渲染 react-native-camera 映射'
 grep -Fq "\`../skills/skills/camera/\`" "$target/AGENTS.md" || fail '未渲染 camera Skill 路径'
+grep -Fq '同步脚本只保留正文结构,不证明正文语义仍然正确' "$target/AGENTS.md" || fail '未注入仓库正文语义审查门禁'
+grep -Fq '已落地行为写成当前事实;已批准但尚未实现的契约写成开发约束' "$target/AGENTS.md" || fail '未注入当前事实与未实现约束的区分门禁'
 grep -Fq '## 本仓规则' "$target/AGENTS.md" || fail '覆盖了本地正文'
 [[ "$(file_mode "$target/AGENTS.md")" == 600 ]] || fail '首次同步改变了 AGENTS.md 的 0600 权限'
 

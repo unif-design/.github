@@ -54,7 +54,7 @@ jobs:
 
 `ci.yml` 取四仓最优并集(actionlint 加固 / `changes` 门控 / build-android temurin / build-ios macos-26+prebuilt)。覆盖策略:workflow 强制统一,`.pr_agent.toml` / `dependabot.yaml` 等带 repo 特化的仅缺时创建。native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan)按 `HAS_NATIVE_SRC` 条件多发 `native-lint.yml`(required check:`lint-cpp` / `lint-kotlin`)+ `nightly-build-check.yml`(advisory canary)+ `.clang-format`。详见 [docs/13-sync.md](docs/13-sync.md)。
 
-上述四仓的根 `AGENTS.md` 例外:全量同步会调用 `scripts/sync-agent-standards.sh`,但它只替换 `BEGIN/END UNIF REACT NATIVE STANDARD` marker 之间的共享区块,不会整文件覆盖。四仓特有规则继续维护在各自根 `AGENTS.md` 的 marker 外;非四仓明确跳过此步骤。也可为四仓单独运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`。两个同步脚本都只修改目标工作树,不 commit / 不 push。
+上述四仓的根 `AGENTS.md` 例外:全量同步会调用 `scripts/sync-agent-standards.sh`,但它只替换 `BEGIN/END UNIF REACT NATIVE STANDARD` marker 之间的共享区块,不会整文件覆盖。四仓特有规则继续维护在各自根 `AGENTS.md` 的 marker 外;非四仓明确跳过此步骤。保留 marker 外正文只是结构保护,不代表正文仍符合当前实现;同步后仍须对照代码、类型、测试、依赖、有效文档与已批准规格做语义审查。也可为四仓单独运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`。两个同步脚本都只修改目标工作树,不 commit / 不 push。
 
 ## 自动化流程标准
 
