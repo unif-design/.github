@@ -66,9 +66,12 @@ jobs:
             shared:
               - 'package.json'
               - 'yarn.lock'
+              - 'turbo.json'                  # native task 定义与 cache 语义
               - 'tsconfig*.json'
               - 'babel.config.js'
               - 'react-native.config.js'
+              - 'example/package.json'        # example native build 命令
+              - 'scripts/**'                  # build / integration gate
               - '.nvmrc'
               - '.github/actions/**'        # 复合 setup action,影响所有 build
               - '.github/workflows/ci.yml'  # CI 自身改动才重验(改 release/dependabot/模板/deploy-docs 不触发 build)
@@ -78,6 +81,7 @@ jobs:
               - 'android/**'
             ios:
               - 'ios/**'
+              - 'example/ios/**'
               - '*.podspec'
             # code = 非纯文档聚合(lint/test 用)。显式列全,不用 YAML anchor ——
             # anchor 在标准 YAML 里展开成 nested array,得靠 dorny 内部 flatten 才生效;
@@ -85,15 +89,19 @@ jobs:
             code:
               - 'package.json'
               - 'yarn.lock'
+              - 'turbo.json'
               - 'tsconfig*.json'
               - 'babel.config.js'
               - 'react-native.config.js'
+              - 'example/package.json'
+              - 'scripts/**'
               - '.nvmrc'
               - '.github/actions/**'        # 复合 setup action,影响所有 build
               - '.github/workflows/ci.yml'  # CI 自身改动才重验(改 release/dependabot/模板/deploy-docs 不触发 build)
               - 'src/**'
               - 'android/**'
               - 'ios/**'
+              - 'example/ios/**'
               - '*.podspec'
 
   lint:
