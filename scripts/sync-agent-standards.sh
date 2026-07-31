@@ -12,6 +12,17 @@ usage() {
   exit 2
 }
 
+file_mode() {
+  local mode
+  if mode="$(stat -f '%Lp' "$1" 2>/dev/null)"; then
+    printf '%s\n' "$mode"
+  elif mode="$(stat -c '%a' "$1" 2>/dev/null)"; then
+    printf '%s\n' "$mode"
+  else
+    return 1
+  fi
+}
+
 [[ $# -ge 1 && $# -le 2 ]] || usage
 
 repo_name="$1"
@@ -28,10 +39,15 @@ esac
 agents_file="$target_dir/AGENTS.md"
 package_file="$target_dir/package.json"
 
+if [[ -L "$agents_file" ]]; then
+  printf 'Refusing to replace symlink: %s\n' "$agents_file" >&2
+  exit 1
+fi
 [[ -f "$template" && -f "$agents_file" && -f "$package_file" ]] || exit 1
 
 actual_package="$(node -e 'const fs = require("fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).name || "")' "$package_file")" || exit 1
 [[ "$actual_package" == "$package" ]] || exit 1
+agents_mode="$(file_mode "$agents_file")" || exit 1
 
 if ! begin_count="$(awk -v begin="$begin_marker" -v end="$end_marker" '
   $0 == begin {
@@ -53,7 +69,7 @@ if ! begin_count="$(awk -v begin="$begin_marker" -v end="$end_marker" '
   exit 1
 fi
 
-temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/sync-agent-standards.XXXXXX")"
+temp_dir="$(mktemp -d "$target_dir/.sync-agent-standards.XXXXXX")"
 trap 'rm -rf "$temp_dir"' EXIT
 rendered="$temp_dir/rendered.md"
 updated="$temp_dir/AGENTS.md"
@@ -90,4 +106,5 @@ else
   ' "$agents_file" >"$updated"
 fi
 
+chmod "$agents_mode" "$updated"
 mv "$updated" "$agents_file"

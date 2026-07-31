@@ -20,7 +20,7 @@
 
 ## website / llms.txt / {{SKILL}} Skill 联动
 
-- 每次库改动都必须核对 `website`、`llms.txt` 和 `../skills/skills/{{SKILL}}/` 中对应的 `{{SKILL}}` Skill。
+- 每次仓库改动(包括仅修改 `AGENTS.md`、CI 或仓库文档)都必须核对 `website`、`llms.txt` 和 `../skills/skills/{{SKILL}}/` 中对应的 `{{SKILL}}` Skill。
 - 明确核对公共 API、类型、运行时行为、错误语义、依赖 / 安装、原生配置、mock、消费者示例、排障结论和文档入口。
 - 受影响项与本次交付同步更新;不受影响时说明核对范围与理由;不可访问或不可写时如实报告。
 
@@ -28,7 +28,7 @@
 
 - 仅当仓库实际采用 `@unif/react-native-design@0.20.0`、`react-native-gesture-handler >=3 <4` 和 `react-native-reanimated-carousel@5.0.0` 时适用;该规则不要求未采用此组合的仓库升级依赖。
 - Carousel 发布 metadata 的 RNGH 范围为 `>=2.9 <3`,与 Design 的 RNGH 范围无交集,但当前组合已适配并验证。
-- 不得仅凭 warning 再次询问、阻塞或建议降级;保留 scoped override、窄 allowlist 和严格漂移检查,禁止全局 override、`--force`、`--legacy-peer-deps`。
+- 不得仅凭上述已验证的 Carousel / RNGH peer warning 再次询问、阻塞或建议降级;保留 scoped override、窄 allowlist 和严格漂移检查,禁止全局 override、`--force`、`--legacy-peer-deps`。
 - 仅在可复现相关回归,或 Carousel 版本 / peer range / RNGH major 变化时重评。
 
 ## 共享与本仓规则边界

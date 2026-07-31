@@ -10,6 +10,10 @@ target="$workspace/react-native-camera"
 bad_target="$workspace/bad-marker"
 duplicate_target="$workspace/duplicate-marker"
 reverse_target="$workspace/reverse-marker"
+symlink_target="$workspace/symlink-target"
+symlink_source="$workspace/symlink-source.md"
+full_target="$workspace/full-react-native-design"
+full_output="$workspace/full-react-native-design-sync.log"
 other_target="$workspace/example-repo"
 other_output="$workspace/example-repo-sync.log"
 
@@ -26,9 +30,20 @@ file_hash() {
   shasum "$1" | awk '{print $1}'
 }
 
+file_mode() {
+  local mode
+  if mode="$(stat -f '%Lp' "$1" 2>/dev/null)"; then
+    printf '%s\n' "$mode"
+  elif mode="$(stat -c '%a' "$1" 2>/dev/null)"; then
+    printf '%s\n' "$mode"
+  else
+    return 1
+  fi
+}
+
 trap cleanup EXIT
 
-mkdir -p "$target" "$bad_target" "$duplicate_target" "$reverse_target" "$other_target"
+mkdir -p "$target" "$bad_target" "$duplicate_target" "$reverse_target" "$symlink_target" "$full_target" "$other_target"
 
 cat >"$target/AGENTS.md" <<'EOF'
 # React Native Camera
@@ -43,12 +58,14 @@ cat >"$target/package.json" <<'EOF'
 EOF
 
 # 首次接入: H1 后插入共享区块,并保留本地正文。
+chmod 0600 "$target/AGENTS.md"
 bash "$sync_script" react-native-camera "$target"
 
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$target/AGENTS.md" || fail '未插入 BEGIN marker'
 grep -Fq "\`react-native-camera\`" "$target/AGENTS.md" || fail '未渲染 react-native-camera 映射'
 grep -Fq "\`../skills/skills/camera/\`" "$target/AGENTS.md" || fail '未渲染 camera Skill 路径'
 grep -Fq '## 本仓规则' "$target/AGENTS.md" || fail '覆盖了本地正文'
+[[ "$(file_mode "$target/AGENTS.md")" == 600 ]] || fail '首次同步改变了 AGENTS.md 的 0600 权限'
 
 # 已接入时应原位替换已有共享区块。
 awk '{ gsub(/`react-native-camera`/, "`stale-camera`"); print }' "$target/AGENTS.md" >"$target/AGENTS.md.next"
@@ -137,6 +154,32 @@ if [[ "$before_reverse_hash" != "$after_reverse_hash" ]]; then
   fail '倒序 marker 被拒绝前仍写入了 AGENTS.md'
 fi
 
+# AGENTS.md 是 symlink 时必须拒绝,且不得替换链接或改动链接目标。
+cat >"$symlink_source" <<'EOF'
+# Symlink Source
+
+保留链接目标正文。
+EOF
+ln -s "$symlink_source" "$symlink_target/AGENTS.md"
+cat >"$symlink_target/package.json" <<'EOF'
+{"name":"@unif/react-native-camera"}
+EOF
+
+before_symlink_destination="$(readlink "$symlink_target/AGENTS.md")"
+before_symlink_source_hash="$(file_hash "$symlink_source")"
+if bash "$sync_script" react-native-camera "$symlink_target"; then
+  fail 'symlink AGENTS.md 被接受'
+fi
+[[ -L "$symlink_target/AGENTS.md" ]] || fail 'symlink AGENTS.md 被替换'
+after_symlink_destination="$(readlink "$symlink_target/AGENTS.md")"
+after_symlink_source_hash="$(file_hash "$symlink_source")"
+if [[ "$before_symlink_destination" != "$after_symlink_destination" ]]; then
+  fail 'symlink AGENTS.md 的链接目标被改动'
+fi
+if [[ "$before_symlink_source_hash" != "$after_symlink_source_hash" ]]; then
+  fail 'symlink AGENTS.md 指向的文件被改动'
+fi
+
 # repo-name 与 package.json#name 不一致时必须拒绝写入。
 cat >"$target/package.json" <<'EOF'
 {"name":"@unif/react-native-design"}
@@ -167,6 +210,28 @@ for mapping in \
   grep -Fq "\`$repo\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 repo 映射"
   grep -Fq "\`../skills/skills/$skill/\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 Skill 映射"
 done
+
+# 目标仓通过全量同步时也必须注入正确共享区块,并保留 marker 外正文。
+cat >"$full_target/AGENTS.md" <<'EOF'
+# React Native Design
+
+## 本仓规则
+
+保留 Design 本地正文。
+EOF
+
+cat >"$full_target/package.json" <<'EOF'
+{"name":"@unif/react-native-design"}
+EOF
+
+if ! bash "$full_sync_script" react-native-design "$full_target" >"$full_output"; then
+  fail '目标仓全量同步退出非零'
+fi
+grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$full_target/AGENTS.md" || fail '目标仓全量同步未插入共享 marker'
+grep -Fq "\`react-native-design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 repo 映射'
+grep -Fq "\`../skills/skills/design/\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 Design Skill'
+grep -Fq '## 本仓规则' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地标题'
+grep -Fq '保留 Design 本地正文。' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地正文'
 
 # 非四仓仍可使用全量同步,但不得注入 React Native 共享 Agent 区块。
 cat >"$other_target/AGENTS.md" <<'EOF'

@@ -64,6 +64,7 @@ jobs:
 
 ## 维护
 
-修改任意 yml / md → push 到 main → **立刻**对所有 caller repo 生效(reusable workflow 引用 `@main`)。
+- **Reusable workflow**:`.github/workflows/pr-agent.yml` 合入 `main` 后,对引用 `@main` 的 caller repo 立即生效,不需要逐仓 sync。
+- **复制 / marker 模板**:`templates/` 合入 `main` 只更新标准源;必须逐仓运行 `scripts/sync-repo.sh`,或仅更新 Agent 标准时运行 `scripts/sync-agent-standards.sh`,再 review diff 并通过各仓 PR + CI 合入。
 
-如果担心改动影响,改用 `@v1` 这种 tag 引用,各 caller 自行升级。
+Reusable workflow 如果改用 `@v1` 这类 tag 引用,则由各 caller 自行升级。
