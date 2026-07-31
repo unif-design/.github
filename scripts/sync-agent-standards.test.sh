@@ -63,9 +63,29 @@ bash "$sync_script" react-native-camera "$target"
 
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$target/AGENTS.md" || fail '未插入 BEGIN marker'
 grep -Fq "\`react-native-camera\`" "$target/AGENTS.md" || fail '未渲染 react-native-camera 映射'
-grep -Fq "\`../skills/skills/camera/\`" "$target/AGENTS.md" || fail '未渲染 camera Skill 路径'
-grep -Fq '同步脚本只保留正文结构,不证明正文语义仍然正确' "$target/AGENTS.md" || fail '未注入仓库正文语义审查门禁'
-grep -Fq '已落地行为写成当前事实;已批准但尚未实现的契约写成开发约束' "$target/AGENTS.md" || fail '未注入当前事实与未实现约束的区分门禁'
+grep -Fq "\`rn-library\`" "$target/AGENTS.md" ||
+  fail '未要求加载 rn-library'
+grep -Fq "\`camera\`" "$target/AGENTS.md" ||
+  fail '未渲染 camera 专项 Skill'
+grep -Fq -- '--global --agent codex --yes' "$target/AGENTS.md" ||
+  fail '缺 Codex 全局安装命令'
+grep -Fq -- '--global --agent claude-code --yes' "$target/AGENTS.md" ||
+  fail '缺 Claude Code 全局安装命令'
+grep -Fq '安装失败' "$target/AGENTS.md" ||
+  fail '缺安装失败停止门禁'
+grep -Fq 'git status --short --branch' "$target/AGENTS.md" ||
+  fail '缺 git 状态门禁'
+for stale_heading in \
+  '## 实现与交付: 验证 + PR CI + 合并后自动发布' \
+  '## website / llms.txt / camera Skill 联动' \
+  '## RNGH 3 / Carousel 5 条件化窄例外'; do
+  if grep -Fq "$stale_heading" "$target/AGENTS.md"; then
+    fail "短 bootstrap 仍包含旧完整章节:$stale_heading"
+  fi
+done
+if grep -Fq '../skills/skills/' "$target/AGENTS.md"; then
+  fail '短 bootstrap 仍依赖本机兄弟 skills 仓路径'
+fi
 grep -Fq '## 本仓规则' "$target/AGENTS.md" || fail '覆盖了本地正文'
 [[ "$(file_mode "$target/AGENTS.md")" == 600 ]] || fail '首次同步改变了 AGENTS.md 的 0600 权限'
 
@@ -210,7 +230,8 @@ for mapping in \
 
   bash "$sync_script" "$repo" "$mapping_target"
   grep -Fq "\`$repo\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 repo 映射"
-  grep -Fq "\`../skills/skills/$skill/\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 Skill 映射"
+  grep -Fq "\`rn-library\`" "$mapping_target/AGENTS.md" || fail "$repo 未要求加载 rn-library"
+  grep -Fq "\`$skill\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染专项 Skill"
 done
 
 # 目标仓通过全量同步时也必须注入正确共享区块,并保留 marker 外正文。
@@ -231,7 +252,8 @@ if ! bash "$full_sync_script" react-native-design "$full_target" >"$full_output"
 fi
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$full_target/AGENTS.md" || fail '目标仓全量同步未插入共享 marker'
 grep -Fq "\`react-native-design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 repo 映射'
-grep -Fq "\`../skills/skills/design/\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 Design Skill'
+grep -Fq "\`rn-library\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未要求加载 rn-library'
+grep -Fq "\`design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 Design Skill'
 grep -Fq '## 本仓规则' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地标题'
 grep -Fq '保留 Design 本地正文。' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地正文'
 
