@@ -5,6 +5,9 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sync_script="$script_dir/sync-agent-standards.sh"
 full_sync_script="$script_dir/sync-repo.sh"
+template="$script_dir/../templates/AGENTS.md"
+begin_marker='<!-- BEGIN UNIF REACT NATIVE STANDARD -->'
+end_marker='<!-- END UNIF REACT NATIVE STANDARD -->'
 workspace="$(mktemp -d)"
 target="$workspace/react-native-camera"
 bad_target="$workspace/bad-marker"
@@ -41,7 +44,90 @@ file_mode() {
   fi
 }
 
+render_expected_marker() {
+  local repo="$1"
+  local skill="$2"
+  local output="$3"
+
+  sed \
+    -e "s/{{REPO}}/$repo/g" \
+    -e "s/{{SKILL}}/$skill/g" \
+    "$template" >"$output"
+}
+
+extract_managed_marker() {
+  local agents_file="$1"
+  local output="$2"
+
+  awk -v begin="$begin_marker" -v end="$end_marker" '
+    $0 == begin { in_marker = 1 }
+    in_marker { print }
+    $0 == end && in_marker {
+      found = 1
+      exit
+    }
+    END { if (!found) exit 1 }
+  ' "$agents_file" >"$output"
+}
+
+assert_managed_marker_exact() {
+  local agents_file="$1"
+  local repo="$2"
+  local skill="$3"
+  local label="$4"
+  local expected="$workspace/expected-marker-$repo.md"
+  local actual="$workspace/actual-marker-$repo.md"
+
+  render_expected_marker "$repo" "$skill" "$expected"
+  extract_managed_marker "$agents_file" "$actual" ||
+    fail "$label 缺少完整共享 marker"
+  cmp -s "$expected" "$actual" ||
+    fail "$label 的共享 marker 与渲染模板不一致"
+}
+
+assert_short_bootstrap_template() {
+  local h2_count
+  local step_count
+  local line_count
+  local step_number
+  local stale_fragment
+
+  h2_count="$(awk '/^## / { count++ } END { print count + 0 }' "$template")"
+  [[ "$h2_count" -eq 1 ]] ||
+    fail "短 bootstrap 模板必须恰好包含 1 个 H2,实际为 $h2_count"
+  grep -Fxq '## 共享标准启动' "$template" ||
+    fail '短 bootstrap 模板唯一 H2 不是「共享标准启动」'
+
+  step_count="$(awk '/^[1-9][0-9]*\. / { count++ } END { print count + 0 }' "$template")"
+  [[ "$step_count" -eq 4 ]] ||
+    fail "短 bootstrap 模板必须恰好包含 4 个编号步骤,实际为 $step_count"
+  for step_number in 1 2 3 4; do
+    grep -Eq "^$step_number\\. " "$template" ||
+      fail "短 bootstrap 模板缺少编号步骤 $step_number"
+  done
+
+  line_count="$(awk 'END { print NR }' "$template")"
+  [[ "$line_count" -le 30 ]] ||
+    fail "短 bootstrap 模板超过 30 行,实际为 $line_count"
+
+  for stale_fragment in \
+    'PR[[:space:]]+CI' \
+    'release[[:space:]]+workflow' \
+    'npm[[:space:]]+publish' \
+    'website' \
+    'llms\.txt' \
+    'RNGH' \
+    'Carousel' \
+    'peer[[:space:]]+warning'; do
+    if grep -Eiq "$stale_fragment" "$template"; then
+      fail "短 bootstrap 模板包含完整共享职责片段:$stale_fragment"
+    fi
+  done
+}
+
 trap cleanup EXIT
+
+assert_short_bootstrap_template
 
 mkdir -p "$target" "$bad_target" "$duplicate_target" "$reverse_target" "$symlink_target" "$full_target" "$other_target"
 
@@ -61,6 +147,7 @@ EOF
 chmod 0600 "$target/AGENTS.md"
 bash "$sync_script" react-native-camera "$target"
 
+assert_managed_marker_exact "$target/AGENTS.md" react-native-camera camera '首次同步'
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$target/AGENTS.md" || fail '未插入 BEGIN marker'
 grep -Fq "\`react-native-camera\`" "$target/AGENTS.md" || fail '未渲染 react-native-camera 映射'
 grep -Fq "\`rn-library\`" "$target/AGENTS.md" ||
@@ -229,6 +316,7 @@ for mapping in \
   printf '{"name":"%s"}\n' "$package" >"$mapping_target/package.json"
 
   bash "$sync_script" "$repo" "$mapping_target"
+  assert_managed_marker_exact "$mapping_target/AGENTS.md" "$repo" "$skill" "$repo"
   grep -Fq "\`$repo\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 repo 映射"
   grep -Fq "\`rn-library\`" "$mapping_target/AGENTS.md" || fail "$repo 未要求加载 rn-library"
   grep -Fq "\`$skill\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染专项 Skill"
@@ -250,6 +338,7 @@ EOF
 if ! bash "$full_sync_script" react-native-design "$full_target" >"$full_output"; then
   fail '目标仓全量同步退出非零'
 fi
+assert_managed_marker_exact "$full_target/AGENTS.md" react-native-design design '目标仓全量同步'
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$full_target/AGENTS.md" || fail '目标仓全量同步未插入共享 marker'
 grep -Fq "\`react-native-design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 repo 映射'
 grep -Fq "\`rn-library\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未要求加载 rn-library'
