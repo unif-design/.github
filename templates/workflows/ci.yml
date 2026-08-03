@@ -47,6 +47,9 @@ jobs:
 
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read       # actions/checkout
+      pull-requests: read  # dorny/paths-filter 在 pull_request 下读取 changed files
     outputs:
       js: ${{ steps.filter.outputs.js }}
       android: ${{ steps.filter.outputs.android }}
@@ -85,6 +88,7 @@ jobs:
               - 'example/ios/**'
               - '*.podspec'
             website:
+              - 'AGENTS.md'
               - 'website/**'
               - 'src/**'
               - 'package.json'
@@ -170,10 +174,14 @@ jobs:
         run: node website/scripts/build-llms.test.js
 
       - name: Typecheck website
-        run: yarn workspace "${{ steps.website.outputs.name }}" typecheck
+        env:
+          WEBSITE_WORKSPACE: ${{ steps.website.outputs.name }}
+        run: yarn workspace "$WEBSITE_WORKSPACE" typecheck
 
       - name: Build website
-        run: yarn workspace "${{ steps.website.outputs.name }}" build
+        env:
+          WEBSITE_WORKSPACE: ${{ steps.website.outputs.name }}
+        run: yarn workspace "$WEBSITE_WORKSPACE" build
 
   build-library:
     runs-on: ubuntu-latest
