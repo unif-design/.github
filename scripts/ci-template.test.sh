@@ -158,6 +158,8 @@ if grep -Fq 'run: yarn workspace "${{ steps.website.outputs.name }}"' "$website_
   fail 'website workspace output 不得直接插值进 run shell'
 fi
 
+node "$script_dir/ci-filter-contract.test.mjs"
+
 [[ -f "$validation_workflow" ]] ||
   fail '共享仓缺少自动执行模板契约的 validate workflow'
 for validation_contract in \
