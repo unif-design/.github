@@ -1,0 +1,45 @@
+name: Validate repository
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate shell scripts
+        run: |
+          bash -n scripts/*.sh
+          shellcheck scripts/*.sh
+        shell: bash
+
+      - name: Validate repository contracts
+        run: |
+          bash scripts/ci-template.test.sh
+          bash scripts/sync-agent-standards.test.sh
+        shell: bash
+
+      - name: Validate workflows
+        run: |
+          ACTIONLINT_VERSION=1.7.12
+          curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" | tar -xz actionlint
+          ./actionlint -color -shellcheck=shellcheck \
+            .github/workflows/pr-agent.yml \
+            .github/workflows/validate.yml \
+            templates/workflows/ci.yml
+        shell: bash

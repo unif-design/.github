@@ -47,11 +47,15 @@ jobs:
 
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read       # actions/checkout
+      pull-requests: read  # dorny/paths-filter 在 pull_request 下读取 changed files
     outputs:
       js: ${{ steps.filter.outputs.js }}
       android: ${{ steps.filter.outputs.android }}
       ios: ${{ steps.filter.outputs.ios }}
       shared: ${{ steps.filter.outputs.shared }}
+      website: ${{ steps.filter.outputs.website }}
       code: ${{ steps.filter.outputs.code }}
     steps:
       - name: Checkout
@@ -83,6 +87,16 @@ jobs:
               - 'ios/**'
               - 'example/ios/**'
               - '*.podspec'
+            website:
+              - 'AGENTS.md'
+              - 'website/**'
+              - 'src/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - 'tsconfig*.json'
+              - '.nvmrc'
+              - '.github/actions/**'
+              - '.github/workflows/ci.yml'
             # code = 非纯文档聚合(lint/test 用)。显式列全,不用 YAML anchor ——
             # anchor 在标准 YAML 里展开成 nested array,得靠 dorny 内部 flatten 才生效;
             # 这是安全关键 gate(失效会让 lint/test 永远 skip、误放行坏代码),不赌该行为。
@@ -136,6 +150,38 @@ jobs:
 
       - name: Run unit tests
         run: yarn test --maxWorkers=2 --coverage
+
+  website:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Resolve website workspace
+        id: website
+        run: |
+          WEBSITE_WORKSPACE=$(node -p "require('./website/package.json').name")
+          printf 'name=%s\n' "$WEBSITE_WORKSPACE" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Test llms builder
+        run: node website/scripts/build-llms.test.js
+
+      - name: Typecheck website
+        env:
+          WEBSITE_WORKSPACE: ${{ steps.website.outputs.name }}
+        run: yarn workspace "$WEBSITE_WORKSPACE" typecheck
+
+      - name: Build website
+        env:
+          WEBSITE_WORKSPACE: ${{ steps.website.outputs.name }}
+        run: yarn workspace "$WEBSITE_WORKSPACE" build
 
   build-library:
     runs-on: ubuntu-latest
