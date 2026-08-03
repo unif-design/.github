@@ -70,11 +70,14 @@ jobs:
             shared:
               - 'package.json'
               - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.yarn/releases/**'
               - 'turbo.json'                  # native task 定义与 cache 语义
               - 'tsconfig*.json'
               - 'babel.config.js'
               - 'react-native.config.js'
               - 'example/package.json'        # example native build 命令
+              - 'example/**'                  # example 是集成输入,任意变更都重验 JS + 双端 native
               - 'scripts/**'                  # build / integration gate
               - '.nvmrc'
               - '.github/actions/**'        # 复合 setup action,影响所有 build
@@ -93,6 +96,8 @@ jobs:
               - 'src/**'
               - 'package.json'
               - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.yarn/releases/**'
               - 'tsconfig*.json'
               - '.nvmrc'
               - '.github/actions/**'
@@ -103,11 +108,14 @@ jobs:
             code:
               - 'package.json'
               - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.yarn/releases/**'
               - 'turbo.json'
               - 'tsconfig*.json'
               - 'babel.config.js'
               - 'react-native.config.js'
               - 'example/package.json'
+              - 'example/**'
               - 'scripts/**'
               - '.nvmrc'
               - '.github/actions/**'        # 复合 setup action,影响所有 build

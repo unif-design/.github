@@ -116,7 +116,7 @@ bash -n scripts/*.sh
 shellcheck scripts/*.sh
 bash scripts/ci-template.test.sh
 bash scripts/sync-agent-standards.test.sh
-actionlint .github/workflows/*.yml templates/workflows/*.yml
+actionlint .github/workflows/*.yml templates/workflows/ci.yml
 git diff --check
 ```
 
