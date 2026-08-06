@@ -14,6 +14,11 @@ pre-commit:
     # main 上掉下来 —— 这真实发生过。分支必须在**首次写入之前**就建好,这条只是最后兜底。
     branch-guard:
       run: |
+        # CI 放行:release-it 的版本 commit 就打在 main 上,而 lefthook 的 postinstall
+        # 会在 CI 装依赖时把 hook 一并装好 —— 不豁免则每次自动发版都卡在 git commit。
+        # 这不是给守卫开后门:main 由 ruleset 保护(必须走 PR,只有 release bot 在
+        # bypass list),CI 里根本不存在「人在 main 上写代码」这个场景。
+        if [ -n "$CI" ]; then exit 0; fi
         # symbolic-ref 而非 rev-parse --abbrev-ref:空仓(还没有 commit)时后者返回
         # 字面量 "HEAD" 而不是分支名,守卫会静默失效。detached HEAD(rebase / bisect
         # 中间态)拿不到分支名,直接放行 —— 那些场景本来就不是「在 main 上写代码」。
