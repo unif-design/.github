@@ -15,7 +15,7 @@
 | `unif-design/.github/scripts/rulesets/protect-main-native.json` | 8-check branch ruleset(native 仓,+`lint-cpp` / `lint-kotlin`),`setup-repo.sh` 自动套用 |
 | `.github/actions/setup/action.yml` | composite action,Node + yarn install + cache,被两个 workflow 复用 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR template,自动套到所有新 PR |
-| `.github/dependabot.yaml` | Dependabot 配置(weekly npm + monthly actions + group)|
+| `unif-design/.github/scripts/sync-repo.sh` | 下发标准文件，并主动移除已停用的 Dependabot 配置 / 自动合并 workflow |
 | `package.json#release-it` | release-it 配置(commit msg / tag / npm publish / GH release)|
 | `package.json#release-it.plugins.@release-it/conventional-changelog` | changelog 生成 + 落盘 `CHANGELOG.md` |
 | `package.json#commitlint` | commit msg 校验规则(`@commitlint/config-conventional`)|
@@ -49,11 +49,11 @@
 - ❌ **用个人 PAT 替发版 bot push main** —— long-lived、绑个人、owner 离职即挂。用 org GitHub App 现场签发的短期 token(见 [发版机制](./04-release.md#push-回受保护-main--用-github-app-token))
 - ❌ **在 `run:` 里直接 `${{ steps... }}` / `${{ github... }}` 插值** —— 先落 `env:` 再用 `$VAR`,杜绝 shell 注入(GitHub 安全最佳实践)
 - ❌ **只修"让 CI 写回 main"却不加防循环** —— 一旦 release commit 能 push 上去,就会命中 `release.yml` 的 paths 触发自己,无限发版。push 能力和 `[skip ci]` + job `if` + `concurrency` 三道防线必须同时上(见 [防自触发死循环](./04-release.md#防自触发死循环))
-- ❌ **`uses:` 写浮动 tag(`@v5` / `@main`)** —— tag 可被移到恶意 commit。pin 到 40 位 commit SHA + `# vX.Y.Z` 注释,Dependabot 自动维护升级(见 [pin SHA](./03-ci.md#第三方-action-一律-pin-到-commit-sha))
+- ❌ **`uses:` 写浮动 tag(`@v5` / `@main`)** —— tag 可被移到恶意 commit。pin 到 40 位 commit SHA + `# vX.Y.Z` 注释，升级时人工核对上游 release 与完整 SHA(见 [pin SHA](./03-ci.md#第三方-action-一律-pin-到-commit-sha))
 - ❌ **workflow 表达式 / `if` 含 `: ` 不套引号** —— YAML 把冒号当 mapping 分隔符,解析失败 workflow 静默不注册。整个 `${{ }}` 套 YAML 双引号,并靠 actionlint 兜底
-- ❌ **在 Dependabot PR 上手动 `git push --force`** —— 一旦你 push 过,Dependabot 视为你接管这个 PR,不再自动 rebase / recreate;且你本地 `yarn install` 解析可能跟 bot 不同,引入坏 yarn.lock。坏了就 `@dependabot close` 让 bot 重开
+- ❌ **没有看 changelog 就批量升级依赖** —— 同一批升级会放大回归定位难度；人工按兼容关系拆分 PR，并跑完整门禁
 - ❌ **把 `pr_agent` 加进 ruleset 的 required status checks** —— AI review 是参考性,DeepSeek API 临时挂或 review 慢会卡死合并
-- ❌ **无脑 `@dependabot ignore this major version`** —— 有些 major 实质是 `engines.node` bump 或内部重构,user-facing API 无变化(参考 release-it 19→20)。**先看 changelog 再决定 ignore**
+- ❌ **只按 major / minor / patch 判断风险** —— 有些 major 只是提高 engines 下限，有些 minor 会改默认行为；先看 changelog 和 migration guide 再决定
 - ❌ **删 `unif-design/.github` repo / 强制 push 它的 main** —— 所有 caller workflow 引用 `@main`,会同时挂掉所有 repo 的 PR Agent。要改重大版本走 PR / 用 git tag (`@v1`) 引用
 
 ---

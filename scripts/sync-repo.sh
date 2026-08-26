@@ -16,14 +16,16 @@
 #
 # 覆盖策略(关键):
 #   - 强制覆盖(统一标准,不允许单仓 drift):
-#       .github/workflows/{ci,release,pr-title,pr-agent,dependabot-auto-merge}.yml
+#       .github/workflows/{ci,release,pr-title,pr-agent}.yml
 #       lefthook.yml / SECURITY.md
 #       .github/ISSUE_TEMPLATE/{bug_report,config}.yml
+#   - 主动移除(组织已停用 Dependabot 自动 PR):
+#       .github/dependabot.yaml
+#       .github/workflows/{dependabot-auto-merge,dependabot-automerge}.yml
 #   - marker 级覆盖(共享 Agent bootstrap,保留仓库特有规则):
 #       AGENTS.md 内的 UNIF React Native Standard 共享区块
 #   - 仅当目标【不存在】时创建(保留各仓 repo 特化,不覆盖):
 #       .github/PULL_REQUEST_TEMPLATE.md(各仓有特化 checklist,如 umeng 微信分享项)
-#       .github/dependabot.yaml(各仓有特化分组)
 #       .pr_agent.toml(各仓有特化 review 规则)
 #       .github/ISSUE_TEMPLATE/feature_request.yml(各仓有特化字段)
 #   - 条件分发:
@@ -126,7 +128,7 @@ render_if_absent() {
   render "$1" "$2"
 }
 
-# 删历史遗留的旧名文件(模板改名后旧文件不会自动消失,留着会双触发 / drift)
+# 删除不再使用的受管文件(同时兼容清理历史旧名)。
 # prune_stale <target-rel-path>
 prune_stale() {
   local dst="$TARGET/$1"
@@ -141,10 +143,10 @@ prune_stale() {
   fi
 }
 
-# ── 0. 清理历史遗留旧名(模板改名后的 stale 文件)────────────────────
-echo "→ [0] 清理旧名文件"
-# dependabot-automerge.yml(无连字符)→ 已统一为 dependabot-auto-merge.yml。
-# 留着会跟新名文件双触发(每个 dependabot PR 跑两遍 auto-merge)。
+# ── 0. 清理已停用的 Dependabot 自动化───────────────────────
+echo "→ [0] 清理已停用的 Dependabot 自动化"
+prune_stale .github/dependabot.yaml
+prune_stale .github/workflows/dependabot-auto-merge.yml
 prune_stale .github/workflows/dependabot-automerge.yml
 echo ""
 
@@ -153,7 +155,6 @@ echo "→ [1] 强制覆盖(统一标准)"
 render workflows/ci.yml                       .github/workflows/ci.yml
 render workflows/pr-title.yml                 .github/workflows/pr-title.yml
 render workflows/pr-agent.yml                 .github/workflows/pr-agent.yml
-render workflows/dependabot-auto-merge.yml    .github/workflows/dependabot-auto-merge.yml
 render lefthook.yml                           lefthook.yml
 render SECURITY.md                            SECURITY.md
 render ISSUE_TEMPLATE/bug_report.yml          .github/ISSUE_TEMPLATE/bug_report.yml
@@ -230,7 +231,6 @@ echo ""
 # ── 4. 仅缺时创建(保留 repo 特化)───────────────────────────────────
 echo "→ [4] 仅当不存在时创建(保留 repo 特化)"
 render_if_absent PULL_REQUEST_TEMPLATE.md          .github/PULL_REQUEST_TEMPLATE.md
-render_if_absent dependabot.yaml                   .github/dependabot.yaml
 render_if_absent pr_agent.toml                     .pr_agent.toml
 render_if_absent ISSUE_TEMPLATE/feature_request.yml .github/ISSUE_TEMPLATE/feature_request.yml
 echo ""
