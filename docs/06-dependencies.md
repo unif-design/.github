@@ -2,230 +2,94 @@
 
 ---
 
-# 依赖管理(Dependabot)
+# 依赖管理（人工升级）
 
-### 配置(`.github/dependabot.yaml`)
+## 组织决策
 
-```yaml
-version: 2
-updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule: { interval: weekly, day: monday, time: '09:00', timezone: Asia/Shanghai }
-    open-pull-requests-limit: 5
-    labels: [dependencies]
-    commit-message: { prefix: chore, include: scope }
-    groups:
-      types: { patterns: ['@types/*'] }
-      react-native: { patterns: ['react-native', 'react-native-*', '@react-native/*', '@react-native-community/*'] }
-      eslint: { patterns: ['eslint', 'eslint-*', '@eslint/*', '@eslint-*'] }
-      jest: { patterns: ['jest', 'jest-*', '@jest/*'] }
-      commitlint: { patterns: ['commitlint', '@commitlint/*'] }
-      release-it: { patterns: ['release-it', '@release-it/*'] }
+依赖升级由维护者明确发起、审查和合并，不让机器人自动创建或自动合并 PR：
 
-  - package-ecosystem: github-actions
-    directory: /
-    schedule: { interval: monthly }
-    labels: [dependencies, github-actions]
-    commit-message: { prefix: ci }
-```
+- 各仓不保留 `.github/dependabot.yaml`。
+- 各仓不保留 `.github/workflows/dependabot-auto-merge.yml` 或旧名 `dependabot-automerge.yml`。
+- `scripts/sync-repo.sh` 每次同步都会主动移除上述文件，防止旧配置复活。
+- `scripts/setup-repo.sh` 明确关闭 GitHub 的 Dependabot security updates，避免它绕过配置文件自动创建安全升级 PR。
+- Dependabot alerts 保留为漏洞信号；发现告警后由维护者创建人工升级 PR。
 
-每周一 09:00(北京时间)Dependabot 扫描 npm 依赖,按 group 打包 PR。GitHub Actions 月更。
+这项约束只关闭自动改代码和自动开 PR，不关闭漏洞告警，也不影响维护者主动升级依赖。
 
-### PR 处理 SOP
-
-```
-1. 看 PR 描述里 Dependabot 自动贴的 changelog
-2. CI 必须 5 个绿(ruleset 拦着)
-3. 决策:
-   ├─ patch / 同 minor → 直接合
-   ├─ minor 跨版本   → 看 changelog,大概率合
-   ├─ major 跨版本   → 必看 changelog!engines bump / 内部重构 → 合;API breaking → 关 + ignore
-   └─ 不想要这个版本 → 评论 ignore 命令
-4. 点 Squash and merge
-```
-
-### `@dependabot` 命令清单
-
-| 命令 | 作用 |
-|---|---|
-| `@dependabot rebase` | 把 PR rebase 到 main 最新 HEAD,**只更新 lock,不重新生成 PR** |
-| `@dependabot recreate` | 丢弃整个 PR branch,基于 main 完全重新生成 PR(用于修复 lockfile 错乱)|
-| `@dependabot merge` | CI 绿后自动合 |
-| `@dependabot squash and merge` | 同上,但 squash merge |
-| `@dependabot close` | 关闭 PR + 删 branch |
-| `@dependabot ignore this version` | 忽略当前版本(下个 patch / minor 会再开 PR)|
-| `@dependabot ignore this minor version` | 忽略整个 minor series(直到下个 minor)|
-| `@dependabot ignore this major version` | 忽略整个 major series(强烈建议某些 major 用)|
-| `@dependabot ignore this dependency` | 完全停掉这个依赖的 PR(只在确定不再升级时用)|
-
-#### rebase vs recreate 的关键区别
-
-| 命令 | 行为 | 用在 |
-|---|---|---|
-| `@dependabot rebase` | 把 PR rebase 到 main 最新 HEAD,**保留** lockfile 现有 resolution 状态,只解决 git 层面冲突 | PR 落后 main 但 lockfile 本身没坏 |
-| `@dependabot recreate` | **完全丢弃** 当前 branch,基于 main 重跑依赖解析,重新生成 lockfile | lockfile 错乱 / 解析到错误版本 / 你自己 force-pushed 过 |
-
-**关键陷阱**:`rebase` 不会重新跑 `yarn install`,所以**坏的 yarn.lock 不会被修复**。如果 PR 报怪异错误(比如 `scopeManager.addGlobals is not a function` 这种依赖版本不匹配),用 `recreate`,**不要**用 `rebase`。
-
-### 升级风险分级
-
-| 类型 | 自动合 | 备注 |
-|---|---|---|
-| `@types/*` patch | ✅ 直接合 | 只影响类型,运行时无影响 |
-| 单 dev lib patch(turbo / prettier / lefthook)| ✅ 直接合 | dev 工具,不影响 npm 包产物 |
-| RN minor / patch | ⚠️ CI 全绿才合 | 看 example build 是否成功 |
-| **major 跨版本** | ⚠️ 必看 changelog | 区分 "engines bump 无害" vs "API breaking",见下方 |
-| **`react-native` 自身 major** | ❌ 不走 Dependabot | 手动 feature branch 升,本地完整测试 |
-| **`peerDependencies` 收紧** | ❌ 不走 Dependabot | 影响消费者,要专门发版通告 |
-
-#### major 升级 case-by-case 判断(不要无脑 ignore)
-
-不是所有 major 都意味着 breaking。**真去看 changelog**,按这个判断:
-
-| changelog 显示 | 实际危险度 | 处理 |
-|---|---|---|
-| **只 bump `engines.node` 最低版本**(去掉旧 Node 支持)| 0(只要你 Node 版本满足新 requirement)| 直接合,本质是"维护层"升级 |
-| **内部依赖替换 / 重构,API 不变** | 0 | 直接合 |
-| **API 重命名 / 改签名** | 高 | 看你用到的 API 是否在变化清单,在 → 必须改代码;不在 → 合 |
-| **默认配置变了**(打破现有行为)| 中-高 | 仔细测,可能需要显式设回旧默认 |
-| **完全重写架构 / 多个 API 不兼容** | 极高 | `@dependabot close` + `@dependabot ignore this major version`,等社区稳一两个 minor 再升 |
-
-**反例**:`release-it 19 → 20` 标 major,实际只是 `engines.node` 提高最低版本,user-facing API 完全不变。无脑 ignore 会错过这种无害升级。
-
-**正例**:某 API 重写的 major(`eslint 8 → 9` 等),pluginAPI 完全不同,需要等 plugin 生态跟上才能升。
-
-### `@unif/*` 互相引用不要用 caret
-
-**规则:`@unif/*` 之间的 peer 与 install 一律写 `>=x.y.z` 下限,不写 `^x.y.z`。**
-
-npm 的 caret 在 0.x 上行为不同 —— 它把次版本也锁死了:
+## 人工升级 SOP
 
 ```text
-^1.26.0   接受 1.26.0 ~ 1.99.99    跨次版本升级
-^0.26.0   只接受 0.26.x            0.27.0 被排除在外
+1. 根据上游 release notes / changelog 明确升级目标和兼容性风险。
+2. 从最新 main 创建 chore/manual-upgrade-<pkg> 分支。
+3. 用 yarn up / yarn install 更新 manifest 与 lockfile，不手改 lockfile。
+4. 审查依赖树、peerDependencies、Node / RN / 原生平台要求和生成文件 diff。
+5. 跑仓库约定的 lint、typecheck、test、build 与必要的真机验证。
+6. 创建普通 PR，说明升级原因、风险、验证证据和回退办法。
+7. CI 与人工审查通过后 squash merge。
 ```
 
-npm 认为 0.x 尚未稳定,次版本也可能破坏兼容。而 `@unif/*` 多数仍在 0.x,
-所以写 `^0.26.0` 时你想说的往往是「0.26 以上都行」,实际说出口的是「只要 0.26.x」。
-
-**它坏起来是静默的**,而且两个方向都会错:
-
-| 现场 | 写法 | 后果 |
-|------|------|------|
-| design 的 doctor | `^0.25.0` | 拒绝了当时最新的 design 0.26.0 —— 装对的反而报 warn |
-| umeng 的 doctor | `^0.20.0` | 与库要求的 `>=0.21.0` **完全不相交**:装对的报 warn、装错的报 ok |
-| umeng 的 install | `^0.26.0` | design 发了 0.27.0 也永远升不上来,而门禁一直是绿的 |
-
-三处都不是「有人写错了」,而是「写的时候是对的,上游发了个次版本就悄悄失效」。
-下限写法没有这个问题:`>=0.26.0` 在 design 发到 0.27、0.28 之后仍然成立。
-
-**上限只在有具体技术依据时才加**(比如确实依赖某个版本的内部行为),并把依据写在旁边 ——
-否则 peer 写窄会把上游每次 minor 都变成你的 breaking。
-
-第三方包不受这条约束,按各自生态惯例来。
-
-### Auto-merge SOP(可选,推荐)
-
-各 repo 加一个 ~30 行的 workflow,让符合条件的 Dependabot PR 自动启用 GitHub auto-merge,跑通 CI 后自动 squash merge,不用每周手动点。
-
-跟上面的 **PR 处理 SOP** 是互补关系:SOP 描述**手动场景**(人审 changelog → 点 merge),本节描述**自动化场景**(符合条件的 patch / minor 自动合);major 仍然走 SOP 人审流程。
-
-#### 工作流文件
-
-`<repo>/.github/workflows/dependabot-auto-merge.yml`:
-
-```yaml
-name: Dependabot Auto-Merge
-
-on:
-  pull_request_target:
-    types: [opened, reopened, synchronize]
-
-permissions:
-  pull-requests: write
-  contents: write
-
-jobs:
-  automerge:
-    if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: dependabot/fetch-metadata@v2
-        id: meta
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Enable auto-merge for patch / minor
-        if: |
-          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
-          steps.meta.outputs.update-type == 'version-update:semver-minor'
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr merge --auto --squash "$PR_URL"
-```
-
-#### 关键决策
-
-| 维度 | 选择 | 原因 |
-|---|---|---|
-| **Auto-merge 哪些类型** | **patch + minor** | major 由 [升级风险分级](#升级风险分级) 决定,case-by-case 人审 |
-| **触发器** | `pull_request_target` 而非 `pull_request` | dependabot 在 `pull_request` 触发的 workflow 默认 GITHUB_TOKEN 是 read-only,改 `pull_request_target` 跑在 base branch 有 write 权限,不需要额外 Settings |
-| **Security**(`pull_request_target` 危险吗?)| 安全 | dependabot 不是 fork(internal bot),且 workflow 不 checkout PR head 代码,只读 PR URL —— 无 supply chain 风险 |
-| **跟 ruleset 交互** | 互补 | workflow **启用** GitHub auto-merge,GitHub 自己等满足 branch protection ruleset(必须 PR + 5 个 CI check + squash only)才合;ruleset 是 gate |
-| **位置** | 单 repo 各自一份 | ~30 行,reusable workflow 收益低,各 repo 复制 yml 即可 |
-
-#### 实际行为
-
-```
-Dependabot 周一开 PR(patch 升级)
-   ↓
-workflow 自动跑(pull_request_target opened)
-   ↓
-fetch-metadata 拿升级类型 → patch
-   ↓
-gh pr merge --auto --squash → GitHub auto-merge enabled
-   ↓
-GitHub 等 CI required check 全绿 + 其他 ruleset 满足
-   ↓
-全部满足 → GitHub 自动 squash merge
-   ↓
-PR 合到 main,源 branch 自动删
-```
-
-对应的 major PR 流程不变:不触发 auto-merge → 人工 review changelog(走上面 **PR 处理 SOP**)→ 决定合 / close / ignore。
-
-#### 接入新 repo
-
-> ⚠️ **前置:repo Settings → General → Pull Requests → "Allow auto-merge" 必须勾上**(不勾 `gh pr merge --auto` 静默失败)。`scripts/setup-repo.sh` 自动开这个开关,新 repo 接入不用手配;手配走旧 repo 自己去 repo Settings 勾。
-
-复制 `<reference-repo>/.github/workflows/dependabot-auto-merge.yml` 到新 repo 同位置即可。不需要新 secret(用默认 `GITHUB_TOKEN`)。
+常用命令：
 
 ```sh
-# 单 repo 接入(在新 repo 根目录)
-mkdir -p .github/workflows
-cp /path/to/reference-repo/.github/workflows/dependabot-auto-merge.yml \
-   .github/workflows/dependabot-auto-merge.yml
-git add .github/workflows/dependabot-auto-merge.yml
-git commit -m "ci: 加 dependabot auto-merge workflow"
+git switch -c chore/manual-upgrade-<pkg>
+yarn up "<pkg>@<version>"
+yarn install
+yarn lint
+yarn typecheck
+yarn test
 ```
 
-#### 什么时候**不**该用
+具体门禁以仓库根 `AGENTS.md`、`CONTRIBUTING.md` 和现有 CI 为准；不要因为升级看起来只是 patch 就省略验证。
 
-- 你想每个依赖升级都手审(强合规项目 / 自托管 critical service)
-- 你的 CI 不够覆盖(没 type / integration test 等),怕 patch 升级偷偷引入 BC
-- 团队规模小到不在乎每周点几下手动 merge
+## GitHub Actions 版本
 
-### 何时关 + ignore
+workflow 的第三方 `uses:` 必须 pin 到 40 位 commit SHA，并保留版本注释：
 
-| 情形 | 操作 |
+```yaml
+uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+```
+
+升级步骤：
+
+1. 从 Action 官方 release / tag 确认目标版本。
+2. 核对该版本 tag 对应的完整 commit SHA，不使用浮动 `@vN` 或 `@main`。
+3. 同时更新 SHA 和版本注释，审查 changelog 中的输入、权限和运行时变化。
+4. 让 actionlint 与相关 workflow 集成门禁通过后再合并。
+
+## 升级风险分级
+
+| 类型 | 处理要求 |
 |---|---|
-| PR yarn.lock 坏了 / 解析错误 | `@dependabot recreate` 重新生成;再不行 `@dependabot close` 等下周再试 |
-| major 跨版本有 breaking | `@dependabot close` + 评论 `@dependabot ignore this major version` |
-| yarn 4 跟某个包暂时不兼容 | 手动 close,本地手动升级调试 |
+| `@types/*` patch | 仍走人工 PR；至少跑 typecheck 与 test |
+| 单个 dev tool patch / minor | 核对 Node engines、配置默认值和插件兼容性 |
+| React Native patch / minor | 跑 example、Android、iOS 构建及必要真机验证 |
+| major | 必看 changelog / migration guide，单独评估 breaking changes |
+| `react-native` major | 独立升级任务，包含完整双端回归 |
+| `peerDependencies` 收紧 | 评估所有消费者，按发布规则说明兼容性影响 |
 
----
+不是所有 major 都一定破坏 API，但也不能只凭版本号判断。只提高 `engines.node` 下限和内部重构可能风险较低；API 重命名、默认值变化、架构重写则必须迁移和回归。
 
+## `@unif/*` 互相引用不要用 caret
+
+**规则：`@unif/*` 之间的 peer 与 install 一律写 `>=x.y.z` 下限，不写 `^x.y.z`。**
+
+npm 的 caret 在 0.x 上会锁住次版本：
+
+```text
+^1.26.0   接受 1.26.0 ~ 1.99.99
+^0.26.0   只接受 0.26.x
+```
+
+多数 `@unif/*` 包仍在 0.x，`^0.26.0` 会意外拒绝 0.27.0；`>=0.26.0` 才能表达组织内部包常用的最低版本语义。只有存在明确技术依据时才加上限，并把依据记录在代码或 PR 中。
+
+## 漏洞告警处理
+
+Dependabot alerts 只负责提示已知 CVE，不自动修改仓库。收到告警后：
+
+1. 确认受影响版本范围、可利用条件和当前仓库是否真实使用该路径。
+2. 选择最小安全版本，在人工分支中升级并执行完整门禁。
+3. 在 PR 中关联告警，记录影响判断和验证证据。
+4. 合并后确认告警关闭；若暂不能升级，记录补偿控制和复查日期。
 
 ---
 

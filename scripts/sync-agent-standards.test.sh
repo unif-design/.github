@@ -6,6 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sync_script="$script_dir/sync-agent-standards.sh"
 full_sync_script="$script_dir/sync-repo.sh"
 template="$script_dir/../templates/AGENTS.md"
+templates_dir="$script_dir/../templates"
 canonical_template_sha256='20ef13f2692eac0ff1f2e65494e4d4a22a443820c405d163962671cb3f63adea'
 begin_marker='<!-- BEGIN UNIF REACT NATIVE STANDARD -->'
 end_marker='<!-- END UNIF REACT NATIVE STANDARD -->'
@@ -29,6 +30,14 @@ fail() {
   printf 'FAIL: %s\n' "$*" >&2
   exit 1
 }
+
+for forbidden_dependabot_template in \
+  'dependabot.yaml' \
+  'workflows/dependabot-auto-merge.yml'; do
+  if [[ -e "$templates_dir/$forbidden_dependabot_template" ]]; then
+    fail "模板目录仍保留 Dependabot 产物:$forbidden_dependabot_template"
+  fi
+done
 
 file_hash() {
   shasum "$1" | awk '{print $1}'
@@ -341,6 +350,18 @@ cat >"$full_target/package.json" <<'EOF'
 {"name":"@unif/react-native-design"}
 EOF
 
+mkdir -p "$full_target/.github/workflows"
+cat >"$full_target/.github/dependabot.yaml" <<'EOF'
+version: 2
+updates: []
+EOF
+cat >"$full_target/.github/workflows/dependabot-auto-merge.yml" <<'EOF'
+name: Stale Dependabot Auto-merge
+EOF
+cat >"$full_target/.github/workflows/dependabot-automerge.yml" <<'EOF'
+name: Legacy Dependabot Auto-merge
+EOF
+
 if ! bash "$full_sync_script" react-native-design "$full_target" >"$full_output"; then
   fail '目标仓全量同步退出非零'
 fi
@@ -351,6 +372,14 @@ grep -Fq "\`rn-library\`" "$full_target/AGENTS.md" || fail '目标仓全量同�
 grep -Fq "\`design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 Design Skill'
 grep -Fq '## 本仓规则' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地标题'
 grep -Fq '保留 Design 本地正文。' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地正文'
+for removed_dependabot_artifact in \
+  '.github/dependabot.yaml' \
+  '.github/workflows/dependabot-auto-merge.yml' \
+  '.github/workflows/dependabot-automerge.yml'; do
+  if [[ -e "$full_target/$removed_dependabot_artifact" ]]; then
+    fail "目标仓全量同步后仍保留 Dependabot 产物:$removed_dependabot_artifact"
+  fi
+done
 
 # 非四仓仍可使用全量同步,但不得注入 React Native 共享 Agent 区块。
 cat >"$other_target/AGENTS.md" <<'EOF'

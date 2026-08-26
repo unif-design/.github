@@ -6,7 +6,7 @@
 
 ## 为什么需要
 
-4 个包仓(design / camera / umeng / hms-scan)的 `ci.yml` / `release.yml` / dependabot / PR 模板等**各 copy 一份**,长期 drift:有的 `ci.yml` 缺 `changes` 门控、有的 build-android 还用 zulu(踩 CDN 520)、dependabot auto-merge 文件名都不统一。
+4 个包仓(design / camera / umeng / hms-scan)的 `ci.yml` / `release.yml` / PR 模板等**各 copy 一份**,长期 drift:有的 `ci.yml` 缺 `changes` 门控、有的 build-android 还用 zulu(踩 CDN 520)、相同 workflow 的实现不一致。
 
 **根因**:workflow 文件本身没有「标准源」。`setup-repo.sh` 管 GitHub 端配置(ruleset / security / Pages),但 repo 内的 `.yml` 文件一直靠人肉复制。
 
@@ -17,7 +17,7 @@
 | 脚本 | 管什么 | 怎么实现 |
 |---|---|---|
 | `setup-repo.sh <repo>` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | `gh api` PATCH/PUT,改 GitHub 服务端 |
-| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / dependabot / lefthook / PR&Issue 模板 / SECURITY;四仓共享 Agent bootstrap | 拷贝 `templates/` + 变量替换;命中四仓时调用 marker 级 Agent 同步,改目标仓工作树 |
+| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / lefthook / PR&Issue 模板 / SECURITY;四仓共享 Agent bootstrap;移除已停用的 Dependabot 自动化 | 拷贝 `templates/` + 变量替换 + 明确清理;命中四仓时调用 marker 级 Agent 同步,改目标仓工作树 |
 
 两者互补:先 `sync-repo.sh` 把 `ci.yml` 等文件 commit 进 repo + 跑过一次(GitHub 索引 check 名),再 `setup-repo.sh` 配 ruleset(required checks 才挂得上)。
 
@@ -32,12 +32,10 @@ templates/
 │   ├── release.yml                # paths 区按 native/JS 注入
 │   ├── pr-title.yml               # conventional-commits 标题校验
 │   ├── pr-agent.yml               # caller,uses unif-design/.github 的 reusable workflow
-│   ├── dependabot-auto-merge.yml  # 统一文件名 + approve 增强
 │   ├── deploy-docs.yml            # 仅有 website/ 的仓
 │   ├── native-lint.yml            # 仅 native 仓:lint-cpp(clang-format)+ lint-kotlin(ktlint),required check
 │   └── nightly-build-check.yml    # 仅 native 仓:RN-next build canary,advisory(非 required)
 ├── .clang-format                  # 仅 native 仓:LLVM/2/120 最小稳定选项
-├── dependabot.yaml                # 基础版
 ├── lefthook.yml
 ├── pr_agent.toml                  # → .pr_agent.toml 基础版
 ├── SECURITY.md
@@ -95,14 +93,15 @@ cd /path/to/unif-design/.github
 
 | 类别 | 文件 | 行为 |
 |---|---|---|
-| **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
+| **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
+| **主动移除** | `.github/dependabot.yaml` / `.github/workflows/dependabot-auto-merge.yml` / `.github/workflows/dependabot-automerge.yml` | 每次 sync 删除，保证机器人自动 PR 和旧自动合并 workflow 不会复活 |
 | **marker 级覆盖(仅四仓)** | camera / design / hms-scan / umeng 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享 bootstrap | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是四仓共享 Agent bootstrap 唯一真相源,完整标准在 `unif-design/skills` 的 `rn-library` Skill,marker 外的仓库特有规则保留;非四仓跳过 |
-| **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `dependabot.yaml` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
+| **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
 | **条件分发(native)** | `native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 仅当目标有手写 native 源码(`HAS_NATIVE_SRC`,见下),即 umeng / hms-scan |
 | **按 native/JS** | `release.yml` 的 `on.push.paths` | 目标有 `*.podspec` → `src/ios/android/podspec`;纯 JS → `src/scripts`。**均不含 package.json/yarn.lock**(workspace 登记 + 依赖升级会连带改它们,不该触发发版)|
 
-> 为什么 `.pr_agent.toml` / `dependabot.yaml` 不强制覆盖:它们带各仓特有规则(review prompt / 依赖分组,且 dependabot 分组**顺序敏感**)。强制覆盖会抹掉特化。改这类文件走「模板是 base,各仓在 base 上手加特化」,sync 只补缺、不动已有。
+> 为什么 `.pr_agent.toml` 不强制覆盖:它带各仓特有 review prompt。强制覆盖会抹掉特化，所以模板只是 base，sync 只补缺、不动已有。
 
 > 为什么四仓的 `AGENTS.md` 不整文件强制覆盖:根文件还承载各仓特有规则。`sync-agent-standards.sh` 只刷新共享 bootstrap marker 区块;零 marker 时在 H1 后首次插入,只缺一侧、重复或倒序时拒绝写入,避免误伤本地规则。完整共享标准在 `unif-design/skills` 的 `rn-library` Skill。marker 脚本只更新 bootstrap,marker 外正文仍须语义审查。需要只更新四仓 Agent bootstrap 时,可独立运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`;非四仓不应用此共享区块。脚本只改目标工作树,不 commit / 不 push / 不创建 PR。
 

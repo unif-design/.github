@@ -1,4 +1,4 @@
-[← 索引](../AUTOMATION.md) · [← 发版机制](./04-release.md) · [依赖管理 (Dependabot) →](./06-dependencies.md)
+[← 索引](../AUTOMATION.md) · [← 发版机制](./04-release.md) · [依赖管理（人工升级）→](./06-dependencies.md)
 
 ---
 
@@ -17,7 +17,7 @@
 | Bypass list | 加发版用的 GitHub App(`unif-release-bot`),**mode 选 `Always`**(见下方「发版 bot 进 bypass」)|
 | Target branches | **Include default branch**(自动跟随 main)|
 
-> ⚠️ **`GITHUB_TOKEN`(`github-actions[bot]`)加不进 bypass list** —— 它不是"安装的 App",bypass 的 Apps 选择器里只有真正装到 repo 的 App(Dependabot 等),没有它。所以发版直接 push 必须靠自建 GitHub App,见下。
+> ⚠️ **`GITHUB_TOKEN`(`github-actions[bot]`)加不进 bypass list** —— 它不是"安装的 App",bypass 的 Apps 选择器里只有真正装到 repo 的 App(如自建的 `unif-release-bot`),没有它。所以发版直接 push 必须靠自建 GitHub App,见下。
 
 ### Rules 勾选(只这 4 个)
 
@@ -74,7 +74,7 @@ App 的建/装/凭据存放、workflow 里怎么用,见 [发版机制 → push �
 | **Allow merge commits** | ❌ | main 上不要 `Merge branch ...` 这种垃圾 commit |
 | **Allow squash merging** | ✅ | 唯一保留 —— PR squash 成 1 个 commit,跟 conventional commits 完美对齐 |
 | **Allow rebase merging** | ❌ | rebase 会把 PR 多个原 commit 全部推到 main,污染历史 |
-| **Allow auto-merge** | ✅ | 让 PR 等满足所有 ruleset 条件(CI 绿 + branch up-to-date 等)后自动合并 —— 是 dependabot auto-merge workflow 必备(`gh pr merge --auto` 命令要求,不勾静默失败)|
+| **Allow auto-merge** | ✅ | 允许人工 PR 在满足所有 ruleset 条件(CI 绿 + branch up-to-date 等)后自动合并;是否启用由 PR 作者决定 |
 | **Default to PR branch name** | 看偏好 | branch 命名规则约束 |
 | **Automatically delete head branches** | ✅ | merge 后远端 branch 自动删,repo 永远干净 |
 | **Always suggest updating PR branches** | 偏好 | 提示落后的 PR rebase main(配合 ruleset 的 "branches up to date" 用)|
@@ -86,4 +86,4 @@ App 的建/装/凭据存放、workflow 里怎么用,见 [发版机制 → push �
 
 ---
 
-[← 索引](../AUTOMATION.md) · [← 发版机制](./04-release.md) · [依赖管理 (Dependabot) →](./06-dependencies.md)
+[← 索引](../AUTOMATION.md) · [← 发版机制](./04-release.md) · [依赖管理（人工升级）→](./06-dependencies.md)

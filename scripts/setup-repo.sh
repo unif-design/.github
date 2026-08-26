@@ -90,13 +90,14 @@ fi
 echo "  ✓ done"
 echo ""
 
-# ── 3. 安全功能:Secret scanning + Private vulnerability reporting ────
-echo "→ [3/6] Security features:Secret scanning + Private vulnerability reporting ..."
+# ── 3. 安全功能:Secret scanning + Private reporting,停用自动安全 PR ───
+echo "→ [3/6] Security features:Secret scanning + Private reporting; disable automated security PRs ..."
 gh api -X PATCH "repos/$FULL" \
   -f 'security_and_analysis[secret_scanning][status]=enabled' \
   -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled' \
   >/dev/null
 gh api -X PUT "repos/$FULL/private-vulnerability-reporting" >/dev/null
+gh api -X DELETE "repos/$FULL/automated-security-fixes" >/dev/null
 echo "  ✓ done"
 echo ""
 

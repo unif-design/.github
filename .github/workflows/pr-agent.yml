@@ -13,7 +13,7 @@ on:
 
 jobs:
   pr_agent:
-    if: github.event.sender.type != 'Bot'  # 排除 dependabot 等 bot,避免循环
+    if: github.event.sender.type != 'Bot'  # 排除所有 bot 事件,避免循环
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

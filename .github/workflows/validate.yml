@@ -31,6 +31,7 @@ jobs:
       - name: Validate repository contracts
         run: |
           bash scripts/ci-template.test.sh
+          bash scripts/setup-repo.test.sh
           bash scripts/sync-agent-standards.test.sh
         shell: bash
 

@@ -63,7 +63,7 @@ on:
 
 ### push 回受保护 main —— 用 GitHub App token
 
-**问题**:main 受 `protect main` ruleset 保护(必须走 PR),但 release-it 要**直接 push** `chore: release X.Y.Z` commit + tag 回 main。默认的 `GITHUB_TOKEN`(`github-actions[bot]`)**加不进 ruleset 的 bypass 列表** —— 它不是一个"安装的 GitHub App",ruleset 的 bypass Apps 选择器里只列出真正**安装到 repo 的 App**(如 Dependabot),没有 `github-actions[bot]` 这一项。
+**问题**:main 受 `protect main` ruleset 保护(必须走 PR),但 release-it 要**直接 push** `chore: release X.Y.Z` commit + tag 回 main。默认的 `GITHUB_TOKEN`(`github-actions[bot]`)**加不进 ruleset 的 bypass 列表** —— 它不是一个"安装的 GitHub App",ruleset 的 bypass Apps 选择器里只列出真正**安装到 repo 的 App**(如自建的 `unif-release-bot`),没有 `github-actions[bot]` 这一项。
 
 **方案**(社区标准做法,semantic-release / changesets 同款):建一个 **org 级 GitHub App**(如 `unif-release-bot`),用它现场签发短期 token 替代 `GITHUB_TOKEN`,再把这个 App 加进 ruleset 的 bypass list。
 

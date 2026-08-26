@@ -1,15 +1,15 @@
-[← 索引](../AUTOMATION.md) · [← 依赖管理 (Dependabot)](./06-dependencies.md) · [PR Review (AI 辅助) →](./08-pr-review.md)
+[← 索引](../AUTOMATION.md) · [← 依赖管理（人工升级）](./06-dependencies.md) · [PR Review (AI 辅助) →](./08-pr-review.md)
 
 ---
 
 # 安全扫描
 
-GitHub 的免费安全检测里**启用 3 层**(repo Settings → Code security);**CodeQL 评估后不启用**(理由见下方子节)。安全姿态由 Secret scanning + Dependabot + Private vulnerability reporting 三层覆盖。
+GitHub 的免费安全检测保留 Secret scanning、Dependabot alerts 和 Private vulnerability reporting；**Dependabot security updates 与 CodeQL 不启用**。alerts 只提供漏洞信号，修复由维护者走人工升级 PR。
 
 | 工具 | 检查什么 | 状态 |
 |---|---|---|
-| **Dependabot alerts** | 依赖里的已知 CVE | 默认 Enabled,不动 |
-| **Dependabot security updates** | 漏洞依赖自动开 PR 升级 | 跟 dependabot.yaml 不同;Settings 单开 |
+| **Dependabot alerts** | 依赖里的已知 CVE | Enabled，只告警 |
+| **Dependabot security updates** | 漏洞依赖自动开 PR 升级 | Disabled；`setup-repo.sh` 主动保持关闭 |
 | **Secret scanning alerts** | 不小心 push 的 token / API key / 密码 | 公有 repo 免费,**已启用** |
 | **Private vulnerability reporting** | 让 SECURITY.md 里"Report a vulnerability"按钮在 repo 上可用 | 跟 SECURITY.md 配套,**已启用** |
 | **CodeQL Code scanning** | 代码静态扫描(SQL 注入 / XSS / 不安全 deserialization 等)| ⊘ **不启用**(详见下方子节)|
@@ -26,7 +26,7 @@ GitHub 的免费安全检测里**启用 3 层**(repo Settings → Code security)
 
 3. **Default setup 语言列表会漂移** —— GitHub 定期重检测语言并自动更新 Default setup 的 languages:design 检测到 Ruby/Gemfile 会自动加回 `ruby`,camera 只 js-ts,各仓覆盖面无法锁死,维护成本 > 收益。
 
-**结论**:关掉。代码层安全靠 review + lint + typecheck + Dependabot(依赖 CVE)兜底;真要上代码扫描,等有了实际 server / 敏感逻辑再**单仓**按需开 Advanced setup。
+**结论**:关掉。代码层安全靠 review + lint + typecheck；依赖 CVE 由 Dependabot alerts 提示，再走人工升级 PR。真要上代码扫描，等有了实际 server / 敏感逻辑再**单仓**按需开 Advanced setup。
 
 **已关闭(2026-06)**:四仓 `code-scanning/default-setup` 已 PATCH `not-configured`,`setup-repo.sh` 重跑保持关闭。
 
@@ -35,4 +35,4 @@ GitHub 的免费安全检测里**启用 3 层**(repo Settings → Code security)
 
 ---
 
-[← 索引](../AUTOMATION.md) · [← 依赖管理 (Dependabot)](./06-dependencies.md) · [PR Review (AI 辅助) →](./08-pr-review.md)
+[← 索引](../AUTOMATION.md) · [← 依赖管理（人工升级）](./06-dependencies.md) · [PR Review (AI 辅助) →](./08-pr-review.md)

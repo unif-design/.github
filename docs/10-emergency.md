@@ -18,21 +18,9 @@ Actions → Release → Run workflow
 - 想强制某个 bump 类型(自动推断给的不对,如 0.x 阶段想用 patch 而非 minor)
 - CI 自动发版挂了,手动重试
 
-### 关闭 / 跳过 Dependabot PR
+### 手动升级依赖
 
-- 单个 PR:评论 `@dependabot close` 或 UI 点 Close
-- 永久 ignore 某依赖某版本:`@dependabot ignore this <version|minor version|major version|dependency>`
-- 全局 ignore 规则(`.github/dependabot.yaml` 加 ignore 块):
-
-```yaml
-ignore:
-  - dependency-name: '*'
-    update-types: ['version-update:semver-major']   # 完全停掉所有 major
-```
-
-### 手动升级依赖(绕过 Dependabot)
-
-适用 yarn 4 lockfile 解析有坑 / 想精确控制升级 / major 跨版本需手测:
+所有依赖升级都由维护者明确发起；遇到安全告警、兼容性修复或计划升级时：
 
 ```sh
 git switch -c chore/manual-upgrade-<pkg>

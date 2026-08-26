@@ -168,6 +168,7 @@ for validation_contract in \
   'shellcheck scripts/*.sh' \
   'bash -n scripts/*.sh' \
   'bash scripts/ci-template.test.sh' \
+  'bash scripts/setup-repo.test.sh' \
   'bash scripts/sync-agent-standards.test.sh' \
   './actionlint' \
   'templates/workflows/ci.yml'; do

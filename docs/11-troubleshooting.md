@@ -63,9 +63,9 @@ if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.he
 
 ### `scopeManager.addGlobals is not a function`(ESLint 报)
 
-**原因**:yarn.lock 把 eslint 升到了 10.x,但代码用旧 plugin 期望 eslint 9 的 API。Dependabot rebase 过程,或者你**手动 force-pushed** 到 dependabot branch 后(`yarn install` 解析到错误版本),都会搞坏 yarn.lock。
+**原因**:yarn.lock 把 eslint 升到了 10.x,但代码用旧 plugin 期望 eslint 9 的 API。人工升级时如果没有把 eslint 与 plugin 当成兼容组合核对，`yarn install` 可能解析出不匹配的版本。
 
-**修法**:`@dependabot recreate`(**不是** rebase)让 bot 完全重新生成 PR;不行就 close 等下次。
+**修法**:从最新 main 重新创建人工升级分支，恢复 manifest / lockfile 后显式选择兼容版本，再运行 `yarn install`、lint、typecheck 和 test；不要手改 lockfile。
 
 ---
 
@@ -145,9 +145,7 @@ dry-run 完别忘了还原,不然下一次 commit 会带上意外的 version bum
 
 **原因**:Ruleset 配了 `Require branches to be up to date`,PR 落后于 main HEAD,必须先同步才能合。
 
-**修法**:
-- Dependabot PR:评论 `@dependabot rebase`
-- 普通 PR:UI 点 **Update with rebase** 按钮(推荐,线性历史)或 **Update with merge commit**
+**修法**:UI 点 **Update with rebase** 按钮(推荐,线性历史)，或在本地 `git fetch origin` 后把分支 rebase 到 `origin/main` 并重新推送。
 
 ---
 
