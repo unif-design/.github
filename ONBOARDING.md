@@ -19,7 +19,7 @@ cd /path/to/unif-design/.github
 ./scripts/sync-repo.sh <repo-name>          # 默认目标 ../<repo-name>
 ```
 
-脚本从 `templates/` 拷贝 `ci.yml` / `release.yml` / dependabot / lefthook / PR&Issue 模板等,做变量替换(repo 名 / npm 包名 / Pages URL),按 native/JS + 有无 website 条件分发。**不 commit / 不 push** —— review `git diff` 后自己 commit + 开 PR(详见 [13-sync](docs/13-sync.md))。
+脚本从 `templates/` 拷贝 `ci.yml` / `release.yml` / lefthook / PR&Issue 模板等,做变量替换(repo 名 / npm 包名 / Pages URL),按 native/JS + 有无 website 条件分发;同时主动移除已停用的 Dependabot 配置和自动合并 workflow。**不 commit / 不 push** —— review `git diff` 后自己 commit + 开 PR(详见 [13-sync](docs/13-sync.md))。
 
 新 repo 必须先有 `.github/workflows/ci.yml`,且 **commit 进 repo + 至少跑过一次**(成功或失败都行,GitHub 需要索引 check 名字),否则下一步 ruleset 的 required status checks 配置会失败。**native 仓**(umeng / hms-scan,有手写 `.kt/.mm`)除 `ci.yml` 外还要 `native-lint.yml` 也 commit 进 repo + 至少跑过一次(GitHub 要先索引 `lint-cpp` / `lint-kotlin` 这俩 check),否则下一步 8-check ruleset 配置会失败。
 
@@ -44,6 +44,7 @@ cd /path/to/unif-design/.github
 | Branch Ruleset "protect main" | 必须 PR + 6 个 required checks(含 actionlint;native 仓为 8 个,多 `lint-cpp` / `lint-kotlin`)+ 禁 force push + Squash only + release-bot bypass。脚本检测到 `native-lint.yml` 自动套 8-check 版 ruleset |
 | Secret scanning + Push protection | enable |
 | Private vulnerability reporting | enable(配合 SECURITY.md)|
+| Dependabot security updates | ⊘ **disable**(只保留 alerts,不自动创建修复 PR)|
 | CodeQL Default setup | ⊘ **disable**(主动关闭,理由见 [07-security.md](docs/07-security.md))|
 | GitHub Pages(若有 deploy-docs.yml)| enable + Source=GitHub Actions |
 | About → Website | 自动指向 Pages URL |
@@ -58,11 +59,12 @@ step 1 的 `sync-repo.sh` 已经把这些文件落到工作树(无需再手动�
 |---|---|---|
 | `.github/workflows/ci.yml` | 强制覆盖 | 四仓最优并集 |
 | `.github/workflows/release.yml` | 强制覆盖 | paths 按 native/JS 注入;npm 包必需 |
-| `.github/workflows/pr-title.yml` / `pr-agent.yml` / `dependabot-auto-merge.yml` | 强制覆盖 | |
+| `.github/workflows/pr-title.yml` / `pr-agent.yml` | 强制覆盖 | |
 | `.github/workflows/deploy-docs.yml` | 条件分发 | 仅有 `website/` 的仓 |
 | `.github/workflows/native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 条件分发 | 仅 native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan);`native-lint` 是 required check,`nightly` 是 advisory canary |
 | `lefthook.yml` / `SECURITY.md` / `.github/PULL_REQUEST_TEMPLATE.md` / `ISSUE_TEMPLATE/*` | 强制覆盖 / 部分仅缺时创建 | `lefthook.yml` 含 native 仓的 `clang-format` / `ktlint` pre-commit(非 native 仓 glob 不命中惰性无害) |
-| `.github/dependabot.yaml` / `.pr_agent.toml` | 仅缺时创建 | 保留各仓 repo 特化,不覆盖 |
+| `.pr_agent.toml` | 仅缺时创建 | 保留各仓 repo 特化,不覆盖 |
+| `.github/dependabot.yaml` / `.github/workflows/dependabot-{auto-merge,automerge}.yml` | 主动移除 | 组织已停用机器人自动升级 PR |
 
 ### 4. npm Trusted Publisher(npm 包专用)
 
