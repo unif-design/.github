@@ -7,6 +7,8 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 template="$script_dir/../templates/workflows/ci.yml"
+setup_template="$script_dir/../templates/actions/setup/action.yml"
+sync_script="$script_dir/sync-repo.sh"
 validation_workflow="$script_dir/../.github/workflows/validate.yml"
 workspace="$(mktemp -d)"
 changes_job="$workspace/changes-job.yml"
@@ -30,9 +32,68 @@ assert_contains() {
   grep -Fq -- "$expected" "$file" || fail "$label"
 }
 
+assert_not_contains() {
+  local file="$1"
+  local unexpected="$2"
+  local label="$3"
+
+  if grep -Fq -- "$unexpected" "$file"; then
+    fail "$label"
+  fi
+}
+
 trap cleanup EXIT
 
 [[ -f "$template" ]] || fail "CI 模板不存在:$template"
+[[ -f "$setup_template" ]] || fail "setup action 模板不存在:$setup_template"
+
+assert_contains \
+  "$template" \
+  'uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3' \
+  'paths-filter 必须固定到支持排除规则的 v4.0.3'
+assert_contains \
+  "$template" \
+  'predicate-quantifier: some-with-excludes' \
+  'paths-filter 必须启用 some-with-excludes'
+
+for rolling_key in \
+  'key: ${{ runner.os }}-turborepo-android-${{ hashFiles('\''yarn.lock'\'') }}-${{ github.sha }}' \
+  'key: ${{ runner.os }}-turborepo-ios-${{ hashFiles('\''yarn.lock'\'') }}-${{ github.sha }}' \
+  'key: ${{ runner.os }}-gradle-${{ hashFiles('\''example/android/gradle/wrapper/gradle-wrapper.properties'\'') }}-${{ github.sha }}'; do
+  assert_contains "$template" "$rolling_key" "缓存 key 缺少 commit 维度:$rolling_key"
+done
+
+for restore_prefix in \
+  '${{ runner.os }}-turborepo-android-${{ hashFiles('\''yarn.lock'\'') }}-' \
+  '${{ runner.os }}-turborepo-ios-${{ hashFiles('\''yarn.lock'\'') }}-' \
+  '${{ runner.os }}-gradle-${{ hashFiles('\''example/android/gradle/wrapper/gradle-wrapper.properties'\'') }}-'; do
+  assert_contains "$template" "$restore_prefix" "缓存 restore-keys 缺少稳定前缀:$restore_prefix"
+done
+
+assert_contains \
+  "$setup_template" \
+  'yarn config get cacheFolder' \
+  'setup action 必须解析 Yarn package cache 目录'
+assert_contains \
+  "$setup_template" \
+  'path: ${{ steps.yarn-cache-dir.outputs.path }}' \
+  'setup action 必须只缓存 Yarn package cache'
+assert_contains \
+  "$setup_template" \
+  'run: yarn install --immutable' \
+  'setup action 必须始终执行 immutable install'
+assert_not_contains \
+  "$setup_template" \
+  '**/node_modules' \
+  'setup action 不得缓存完整 node_modules'
+assert_not_contains \
+  "$setup_template" \
+  'if: steps.yarn-cache.outputs.cache-hit' \
+  'setup action 不得因 cache hit 跳过 immutable install'
+assert_contains \
+  "$sync_script" \
+  'render actions/setup/action.yml              .github/actions/setup/action.yml' \
+  'sync-repo 必须强制下发 setup action'
 
 awk '
   $0 == "  changes:" {

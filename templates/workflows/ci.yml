@@ -61,9 +61,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Filter changed paths
-        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          # 同一 filter 内先命中任一正向 pattern,再排除所有 !pattern。
+          # v4.0.3 的 some-with-excludes 避免默认 some 把否定 pattern 当成“多数文件命中”。
+          predicate-quantifier: some-with-excludes
           # 各区域 glob;code = 非纯文档聚合,给 lint/test 用。
           # 注意:不要给本 workflow 加 on.paths —— 那会让 required check 永远 pending 卡死 PR。
           filters: |
@@ -77,13 +80,31 @@ jobs:
               - 'babel.config.js'
               - 'react-native.config.js'
               - 'example/package.json'        # example native build 命令
-              - 'example/**'                  # example 是集成输入,任意变更都重验 JS + 双端 native
+              - 'example/**'                  # example runtime/config/native 是双端集成输入
+              - '!example/src/__tests__/**'
+              - '!example/src/**/__tests__/**'
+              - '!example/src/*.test.*'
+              - '!example/src/**/*.test.*'
+              - '!example/src/*.spec.*'
+              - '!example/src/**/*.spec.*'
+              - '!example/*.md'
+              - '!example/**/*.md'
               - 'scripts/**'                  # build / integration gate
+              - '!scripts/__tests__/**'
+              - '!scripts/**/__tests__/**'
+              - '!scripts/*.test.*'
+              - '!scripts/**/*.test.*'
               - '.nvmrc'
               - '.github/actions/**'        # 复合 setup action,影响所有 build
               - '.github/workflows/ci.yml'  # CI 自身改动才重验(改 release/模板/deploy-docs 不触发 build)
             js:
               - 'src/**'
+              - '!src/__tests__/**'
+              - '!src/**/__tests__/**'
+              - '!src/*.test.*'
+              - '!src/**/*.test.*'
+              - '!src/*.spec.*'
+              - '!src/**/*.spec.*'
             android:
               - 'android/**'
             ios:
@@ -92,8 +113,16 @@ jobs:
               - '*.podspec'
             website:
               - 'AGENTS.md'
+              - 'README.md'
+              - 'example/README.md'
               - 'website/**'
               - 'src/**'
+              - '!src/__tests__/**'
+              - '!src/**/__tests__/**'
+              - '!src/*.test.*'
+              - '!src/**/*.test.*'
+              - '!src/*.spec.*'
+              - '!src/**/*.spec.*'
               - 'package.json'
               - 'yarn.lock'
               - '.yarnrc.yml'
@@ -113,10 +142,17 @@ jobs:
               - 'turbo.json'
               - 'tsconfig*.json'
               - 'babel.config.js'
+              - 'eslint.config.*'
+              - 'jest*.js'
+              - 'jest*.mjs'
+              - 'jest*.ts'
               - 'react-native.config.js'
               - 'example/package.json'
               - 'example/**'
+              - '!example/*.md'
+              - '!example/**/*.md'
               - 'scripts/**'
+              - '__tests__/**'
               - '.nvmrc'
               - '.github/actions/**'        # 复合 setup action,影响所有 build
               - '.github/workflows/ci.yml'  # CI 自身改动才重验(改 release/模板/deploy-docs 不触发 build)
@@ -225,8 +261,9 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.TURBO_CACHE_DIR }}
-          key: ${{ runner.os }}-turborepo-android-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-turborepo-android-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turborepo-android-${{ hashFiles('yarn.lock') }}-
             ${{ runner.os }}-turborepo-android-
 
       - name: Check turborepo cache for Android
@@ -258,8 +295,9 @@ jobs:
           path: |
             ~/.gradle/wrapper
             ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('example/android/gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('example/android/gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-gradle-${{ hashFiles('example/android/gradle/wrapper/gradle-wrapper.properties') }}-
             ${{ runner.os }}-gradle-
 
       - name: Build example for Android
@@ -298,8 +336,9 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.TURBO_CACHE_DIR }}
-          key: ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}-
             ${{ runner.os }}-turborepo-ios-
 
       - name: Check turborepo cache for iOS

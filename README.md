@@ -6,7 +6,7 @@
 
 | 文件 | 作用 | 共享机制 |
 |---|---|---|
-| `templates/` | 标准 workflow + 配置文件源(`ci.yml` 四仓最优并集 / release / lefthook / PR&Issue 模板 / SECURITY;native 仓另发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`) | `scripts/sync-repo.sh` 下发到各 repo |
+| `templates/` | 标准 workflow + 配置文件源(`ci.yml`、共享 setup action、release / lefthook / PR&Issue 模板 / SECURITY;native 仓另发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`) | `scripts/sync-repo.sh` 下发到各 repo |
 | `templates/AGENTS.md` | camera / design / hms-scan / umeng 四仓共享 Agent bootstrap 唯一真相源;完整标准在 `unif-design/skills` 的 `rn-library` Skill | `scripts/sync-agent-standards.sh` marker 级同步 |
 | `scripts/sync-repo.sh` | 把 `templates/` 同步到目标 repo(变量替换 + 条件分发;四仓另同步共享 Agent bootstrap;不 commit / 不 push) | 见 [AUTOMATION docs/13](docs/13-sync.md) |
 | `scripts/sync-agent-standards.sh` | 只刷新四仓根 `AGENTS.md` 的共享 bootstrap marker 区块,不改仓库特有规则(不 commit / 不 push) | 可独立运行,也由全量同步按仓名调用 |
@@ -52,7 +52,7 @@ jobs:
 ./scripts/sync-repo.sh react-native-design
 ```
 
-`ci.yml` 取四仓最优并集(actionlint 加固 / `changes` 门控 / build-android temurin / build-ios macos-26+prebuilt)。覆盖策略:workflow 强制统一,`.pr_agent.toml` 等带 repo 特化的配置仅缺时创建;已停用的 Dependabot 配置和自动合并 workflow 会被主动移除。native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan)按 `HAS_NATIVE_SRC` 条件多发 `native-lint.yml`(required check:`lint-cpp` / `lint-kotlin`)+ `nightly-build-check.yml`(advisory canary)+ `.clang-format`。详见 [docs/13-sync.md](docs/13-sync.md)。
+`ci.yml` 取四仓最优并集(actionlint 加固 / `changes` 门控 / test-only 排除 / rolling native cache / build-android temurin / build-ios macos-26+prebuilt),共享 setup action 只缓存 Yarn package download cache 并始终执行 immutable install。两者都由 sync 强制统一;`.pr_agent.toml` 等带 repo 特化的配置仅缺时创建;已停用的 Dependabot 配置和自动合并 workflow会被主动移除。native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan)按 `HAS_NATIVE_SRC` 条件多发 `native-lint.yml`(required check:`lint-cpp` / `lint-kotlin`)+ `nightly-build-check.yml`(advisory canary)+ `.clang-format`。详见 [docs/13-sync.md](docs/13-sync.md)。
 
 上述四仓的根 `AGENTS.md` 例外:全量同步会调用 `scripts/sync-agent-standards.sh`,但它只替换 `BEGIN/END UNIF REACT NATIVE STANDARD` marker 之间的共享 bootstrap,不会整文件覆盖。四仓特有规则继续维护在各自根 `AGENTS.md` 的 marker 外;非四仓明确跳过此步骤。marker 脚本只更新 bootstrap,marker 外正文仍须语义审查。也可为四仓单独运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`。两个同步脚本都只修改目标工作树,不 commit / 不 push。历史 `docs/superpowers/specs/` 与 `docs/superpowers/plans/` 记录当时设计,不回写。
 
