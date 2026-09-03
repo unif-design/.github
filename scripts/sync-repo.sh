@@ -17,6 +17,7 @@
 # 覆盖策略(关键):
 #   - 强制覆盖(统一标准,不允许单仓 drift):
 #       .github/workflows/{ci,release,pr-title,pr-agent}.yml
+#       .github/actions/setup/action.yml
 #       lefthook.yml / SECURITY.md
 #       .github/ISSUE_TEMPLATE/{bug_report,config}.yml
 #   - 主动移除(组织已停用 Dependabot 自动 PR):
@@ -153,6 +154,7 @@ echo ""
 # ── 1. 强制覆盖的 workflow / 配置文件 ────────────────────────────────
 echo "→ [1] 强制覆盖(统一标准)"
 render workflows/ci.yml                       .github/workflows/ci.yml
+render actions/setup/action.yml              .github/actions/setup/action.yml
 render workflows/pr-title.yml                 .github/workflows/pr-title.yml
 render workflows/pr-agent.yml                 .github/workflows/pr-agent.yml
 render lefthook.yml                           lefthook.yml

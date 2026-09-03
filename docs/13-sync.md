@@ -27,6 +27,8 @@
 
 ```
 templates/
+├── actions/
+│   └── setup/action.yml           # Node + Yarn package cache + immutable install
 ├── workflows/
 │   ├── ci.yml                     # 四仓最优并集(见下)
 │   ├── release.yml                # paths 区按 native/JS 注入
@@ -55,6 +57,8 @@ templates/
 |---|---|---|
 | actionlint `-shellcheck=shellcheck` + `shellcheck --version` | camera | 显式断言 shellcheck 存在,防 runner 变更导致 shell 检查静默降级 |
 | `changes` paths-filter job(`dorny/paths-filter` v4)+ lint/test/build-* 挂 `needs: changes` | umeng / hms-scan | 纯文档 / 无关 PR 直接 skip build,省 CI |
+| test-only 路径排除 + rolling Turbo/Gradle key | 统一标准 | 测试改动只跑 lint/test;新 commit restore 旧 cache 后仍可保存增量 |
+| setup action 只缓存 Yarn package cache,始终 immutable install | 统一标准 | 避免多 workspace `node_modules` 大缓存与旧 install-state 假命中 |
 | build-android `distribution: temurin` | design | runner toolcache 预装,避开 zulu/Azul CDN 偶发 520 |
 | build-ios `macos-26` + `XCODE_VERSION: 26.5` + `RCT_USE_PREBUILT_RNCORE=1` | umeng / hms-scan | 26.5 修好 codegen `'memory' file not found`;prebuilt 省源码编译 5-10 分钟 |
 | `setup-xcode` pin v1.7.0(`ed7a3b1...`) | design / camera | 最新可用 pin |
@@ -93,7 +97,7 @@ cd /path/to/unif-design/.github
 
 | 类别 | 文件 | 行为 |
 |---|---|---|
-| **强制覆盖** | `ci.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
+| **强制覆盖** | `ci.yml` / `.github/actions/setup/action.yml` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
 | **主动移除** | `.github/dependabot.yaml` / `.github/workflows/dependabot-auto-merge.yml` / `.github/workflows/dependabot-automerge.yml` | 每次 sync 删除，保证机器人自动 PR 和旧自动合并 workflow 不会复活 |
 | **marker 级覆盖(仅四仓)** | camera / design / hms-scan / umeng 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享 bootstrap | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是四仓共享 Agent bootstrap 唯一真相源,完整标准在 `unif-design/skills` 的 `rn-library` Skill,marker 外的仓库特有规则保留;非四仓跳过 |
 | **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
