@@ -4,7 +4,7 @@
 #
 # 这是「四仓最优并集」:
 #   - actionlint 显式 -shellcheck=shellcheck 加固(camera 写法)
-#   - changes paths-filter job(dorny/paths-filter v4)跳过纯文档/无关 PR
+#   - changes 复用共享路径规则，按平台和实际运行输入选择验证
 #   - build-android distribution: temurin(design,避 zulu/Azul CDN 偶发 520)
 #   - build-ios macos-26 + Xcode 26.5 + RCT_USE_PREBUILT_RNCORE(umeng/hms-scan)
 #   - setup-xcode pin v1.6.0 + macos-26(umeng/hms-scan 真实在跑的组合)
@@ -29,8 +29,14 @@ permissions:
 
 jobs:
   actionlint:
+    needs: changes
+    if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Require change classification
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+        run: test "$CHANGES_RESULT" = success
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Run actionlint
@@ -48,136 +54,24 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     permissions:
-      contents: read       # actions/checkout
-      pull-requests: read  # dorny/paths-filter 在 pull_request 下读取 changed files
+      contents: read
+      pull-requests: read
     outputs:
-      has_website: ${{ steps.project.outputs.has_website }}
-      js: ${{ steps.filter.outputs.js }}
-      android: ${{ steps.filter.outputs.android }}
-      ios: ${{ steps.filter.outputs.ios }}
-      shared: ${{ steps.filter.outputs.shared }}
-      website: ${{ steps.filter.outputs.website }}
-      code: ${{ steps.filter.outputs.code }}
+      has_website: ${{ steps.scope.outputs.has_website }}
+      js: ${{ steps.scope.outputs.js }}
+      android: ${{ steps.scope.outputs.android }}
+      ios: ${{ steps.scope.outputs.ios }}
+      shared: ${{ steps.scope.outputs.shared }}
+      website: ${{ steps.scope.outputs.website }}
+      code: ${{ steps.scope.outputs.code }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Detect website workspace
-        id: project
-        run: |
-          if [[ -f website/package.json ]]; then
-            printf 'has_website=true\n' >> "$GITHUB_OUTPUT"
-          else
-            printf 'has_website=false\n' >> "$GITHUB_OUTPUT"
-          fi
-        shell: bash
-      - name: Filter changed paths
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
         with:
-          # 同一 filter 内先命中任一正向 pattern,再排除所有 !pattern。
-          # v4.0.3 的 some-with-excludes 避免默认 some 把否定 pattern 当成“多数文件命中”。
-          predicate-quantifier: some-with-excludes
-          # 各区域 glob;code = 非纯文档聚合,给 lint/test 用。
-          # 注意:不要给本 workflow 加 on.paths —— 那会让 required check 永远 pending 卡死 PR。
-          filters: |
-            shared:
-              - 'package.json'
-              - 'yarn.lock'
-              - '.yarnrc.yml'
-              - '.yarn/releases/**'
-              - 'turbo.json'                  # native task 定义与 cache 语义
-              - 'tsconfig*.json'
-              - 'babel.config.js'
-              - 'react-native.config.js'
-              - 'example/package.json'        # example native build 命令
-              - 'example/**'                  # example runtime/config/native 是双端集成输入
-              - '!example/src/__tests__/**'
-              - '!example/src/**/__tests__/**'
-              - '!example/src/*.test.*'
-              - '!example/src/**/*.test.*'
-              - '!example/src/*.spec.*'
-              - '!example/src/**/*.spec.*'
-              - '!example/*.md'
-              - '!example/**/*.md'
-              - 'scripts/**'                  # build / integration gate
-              - '!scripts/__tests__/**'
-              - '!scripts/**/__tests__/**'
-              - '!scripts/*.test.*'
-              - '!scripts/**/*.test.*'
-              - '.nvmrc'
-              - '.github/actions/**'        # 复合 setup action,影响所有 build
-              - '.github/workflows/ci.yml'  # CI 自身改动才重验(改 release/模板/deploy-docs 不触发 build)
-            js:
-              - 'src/**'
-              - '!src/__tests__/**'
-              - '!src/**/__tests__/**'
-              - '!src/*.test.*'
-              - '!src/**/*.test.*'
-              - '!src/*.spec.*'
-              - '!src/**/*.spec.*'
-            android:
-              - 'android/**'
-            ios:
-              - 'ios/**'
-              - 'example/ios/**'
-              - '*.podspec'
-            website:
-              - 'AGENTS.md'
-              - 'README.md'
-              - 'example/README.md'
-              - 'website/**'
-              - 'example/src/**'
-              - '!example/src/__tests__/**'
-              - '!example/src/**/__tests__/**'
-              - '!example/src/*.test.*'
-              - '!example/src/**/*.test.*'
-              - '!example/src/*.spec.*'
-              - '!example/src/**/*.spec.*'
-              - 'src/**'
-              - '!src/__tests__/**'
-              - '!src/**/__tests__/**'
-              - '!src/*.test.*'
-              - '!src/**/*.test.*'
-              - '!src/*.spec.*'
-              - '!src/**/*.spec.*'
-              - 'package.json'
-              - 'yarn.lock'
-              - '.yarnrc.yml'
-              - '.yarn/releases/**'
-              - 'tsconfig*.json'
-              - '.nvmrc'
-              - '.github/actions/**'
-              - '.github/workflows/ci.yml'
-            # code = 非纯文档聚合(lint/test 用)。显式列全,不用 YAML anchor ——
-            # anchor 在标准 YAML 里展开成 nested array,得靠 dorny 内部 flatten 才生效;
-            # 这是安全关键 gate(失效会让 lint/test 永远 skip、误放行坏代码),不赌该行为。
-            code:
-              - 'package.json'
-              - 'yarn.lock'
-              - '.yarnrc.yml'
-              - '.yarn/releases/**'
-              - 'turbo.json'
-              - 'tsconfig*.json'
-              - 'babel.config.js'
-              - 'eslint.config.*'
-              - 'jest*.js'
-              - 'jest*.mjs'
-              - 'jest*.ts'
-              - 'react-native.config.js'
-              - 'example/package.json'
-              - 'example/**'
-              - '!example/*.md'
-              - '!example/**/*.md'
-              - 'scripts/**'
-              - '__tests__/**'
-              - '.nvmrc'
-              - '.github/actions/**'        # 复合 setup action,影响所有 build
-              - '.github/workflows/ci.yml'  # CI 自身改动才重验(改 release/模板/deploy-docs 不触发 build)
-              - 'src/**'
-              - 'android/**'
-              - 'ios/**'
-              - 'example/ios/**'
-              - '*.podspec'
+          fetch-depth: 0
+      - name: Select affected checks
+        id: scope
+        uses: ./.github/actions/changes
 
   lint:
     runs-on: ubuntu-latest
@@ -292,7 +186,7 @@ jobs:
           fi
 
       - name: Install JDK
-        if: env.turbo_cache_hit != 1
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/android.sh') != ''
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           # temurin:ubuntu runner toolcache 预装 JDK 17,setup-java 本地命中、
@@ -301,12 +195,12 @@ jobs:
           java-version: '17'
 
       - name: Finalize Android SDK
-        if: env.turbo_cache_hit != 1
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/android.sh') != ''
         run: |
           /bin/bash -c "yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null"
 
       - name: Cache Gradle
-        if: env.turbo_cache_hit != 1
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/android.sh') != ''
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
@@ -322,6 +216,10 @@ jobs:
           JAVA_OPTS: "-XX:MaxHeapSize=6g"
         run: |
           yarn turbo run build:android --cache-dir="${{ env.TURBO_CACHE_DIR }}"
+
+      - name: Verify Android integration
+        if: hashFiles('.github/ci/android.sh') != ''
+        run: bash .github/ci/android.sh
 
   build-ios:
     runs-on: macos-26
@@ -367,13 +265,13 @@ jobs:
           fi
 
       - name: Use appropriate Xcode version
-        if: env.turbo_cache_hit != 1
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
         uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Install cocoapods
-        if: env.turbo_cache_hit != 1
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
         run: |
           cd example
           bundle install
@@ -383,3 +281,7 @@ jobs:
       - name: Build example for iOS
         run: |
           yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
+
+      - name: Verify iOS integration
+        if: hashFiles('.github/ci/ios.sh') != ''
+        run: bash .github/ci/ios.sh

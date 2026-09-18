@@ -155,6 +155,8 @@ echo ""
 echo "→ [1] 强制覆盖(统一标准)"
 render workflows/ci.yml                       .github/workflows/ci.yml
 render actions/setup/action.yml              .github/actions/setup/action.yml
+render actions/changes/action.yml            .github/actions/changes/action.yml
+render actions/changes/classify-package.cjs    .github/actions/changes/classify-package.cjs
 render workflows/pr-title.yml                 .github/workflows/pr-title.yml
 render workflows/pr-agent.yml                 .github/workflows/pr-agent.yml
 render lefthook.yml                           lefthook.yml

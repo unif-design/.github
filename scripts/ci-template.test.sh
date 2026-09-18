@@ -8,6 +8,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 template="$script_dir/../templates/workflows/ci.yml"
 setup_template="$script_dir/../templates/actions/setup/action.yml"
+changes_action="$script_dir/../templates/actions/changes/action.yml"
 sync_script="$script_dir/sync-repo.sh"
 validation_workflow="$script_dir/../.github/workflows/validate.yml"
 workspace="$(mktemp -d)"
@@ -48,11 +49,11 @@ trap cleanup EXIT
 [[ -f "$setup_template" ]] || fail "setup action 模板不存在:$setup_template"
 
 assert_contains \
-  "$template" \
+  "$changes_action" \
   'uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3' \
   'paths-filter 必须固定到支持排除规则的 v4.0.3'
 assert_contains \
-  "$template" \
+  "$changes_action" \
   'predicate-quantifier: some-with-excludes' \
   'paths-filter 必须启用 some-with-excludes'
 
@@ -119,21 +120,21 @@ assert_contains \
 
 assert_contains \
   "$template" \
-  'website: ${{ steps.filter.outputs.website }}' \
+  'website: ${{ steps.scope.outputs.website }}' \
   'changes job 缺少 website output'
 
 awk '
-  $0 == "            website:" {
+  $0 == "          website:" {
     in_filter = 1
     next
   }
-  in_filter && $0 ~ /^            [a-z][a-z0-9_-]*:$/ {
+  in_filter && $0 ~ /^          [a-z][a-z0-9_-]*:$/ {
     exit
   }
   in_filter {
     print
   }
-' "$template" >"$website_filter"
+' "$changes_action" >"$website_filter"
 
 [[ -s "$website_filter" ]] || fail 'changes filters 缺少 website filter'
 
@@ -170,7 +171,7 @@ awk '
 assert_contains "$website_job" 'needs: changes' 'website job 未依赖 changes'
 assert_contains \
   "$changes_job" \
-  'has_website: ${{ steps.project.outputs.has_website }}' \
+  'has_website: ${{ steps.scope.outputs.has_website }}' \
   'changes job 必须交付真实 website 是否存在'
 assert_contains \
   "$website_job" \
@@ -229,6 +230,7 @@ if grep -Fq 'run: yarn workspace "${{ steps.website.outputs.name }}"' "$website_
 fi
 
 node "$script_dir/ci-filter-contract.test.mjs"
+node --test "$script_dir/ci-package-scope.test.cjs"
 
 [[ -f "$validation_workflow" ]] ||
   fail '共享仓缺少自动执行模板契约的 validate workflow'
