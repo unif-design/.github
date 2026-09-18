@@ -1,4 +1,5 @@
 'use strict';
+const process = require('node:process');
 const { Buffer } = require('node:buffer');
 
 const assert = require('node:assert');

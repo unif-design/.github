@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const process = require('node:process');
 
 const path = require('node:path');
 const { buildBundle, commitBundle } = require('./llms/bundle');

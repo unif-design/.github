@@ -253,7 +253,10 @@ function validateTargetNames(bundle) {
       target.startsWith('/') ||
       /^[A-Za-z]:/u.test(target) ||
       target.includes('\\') ||
-      /[\u0000-\u001F\u007F]/u.test(target) ||
+      Array.from(target).some(
+        (character) =>
+          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127
+      ) ||
       target
         .split('/')
         .some(

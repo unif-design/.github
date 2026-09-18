@@ -38,7 +38,10 @@ function normalizeRelSlug(value, sourceName) {
     value.startsWith('/') ||
     /^[A-Za-z]:/u.test(value) ||
     value.includes('\\') ||
-    /[\u0000-\u001F\u007F]/u.test(value)
+    Array.from(value).some(
+      (character) =>
+        character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127
+    )
   ) {
     throw new Error(
       `${sourceName}: unsafe relative slug ${JSON.stringify(value)}`

@@ -1,4 +1,5 @@
 'use strict';
+const process = require('node:process');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
