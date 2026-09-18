@@ -94,6 +94,7 @@ const cases = [
   ['example/package.json', ['manifest'], ['shared', 'code', 'example']],
   ['.github/ci/ios.sh', ['ios', 'code'], ['android', 'shared']],
   ['.github/ci/android.sh', ['android', 'code'], ['ios', 'shared']],
+  ['.github/actions/changes/action.yml', ['instructions', 'shared', 'code', 'website'], []],
   ['type-tests/public-api.tsx', ['code'], ['shared', 'ios', 'android', 'js']],
   ['example/GUIDE.md', [], ['shared', 'code', 'ios', 'android']],
   ['scripts/README.md', [], ['shared', 'code', 'tooling']],
