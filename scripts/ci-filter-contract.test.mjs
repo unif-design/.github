@@ -10,7 +10,8 @@ const workflowPath = process.argv[2]
   ? resolve(process.cwd(), process.argv[2])
   : resolve(scriptDirectory, '../templates/workflows/ci.yml');
 const template = readFileSync(workflowPath, 'utf8');
-const block = template.match(/          filters: \|\n([\s\S]*?)\n\n  lint:/);
+const action = readFileSync(resolve(dirname(workflowPath), '../actions/changes/action.yml'), 'utf8');
+const block = action.match(/        filters: \|\n([\s\S]*?)\n    - name: Compare package runtime fields/);
 
 assert.ok(block, 'CI 模板缺少可解析的 paths-filter block');
 
@@ -18,27 +19,35 @@ const filters = new Map();
 let currentFilter;
 
 for (const line of block[1].split('\n')) {
-  const header = /^            ([a-z][a-z0-9_-]*):$/.exec(line);
+  const header = /^          ([a-z][a-z0-9_-]*):$/.exec(line);
   if (header != null) {
     currentFilter = header[1];
     filters.set(currentFilter, []);
     continue;
   }
 
-  const item = /^              - '([^']+)'/.exec(line);
+  const item = /^            - '([^']+)'/.exec(line);
   if (item != null && currentFilter != null) {
     filters.get(currentFilter).push(item[1]);
   }
 }
 
 function globToRegExp(glob) {
-  const globstar = '\u0000';
-  const escaped = glob
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replaceAll('**', globstar)
-    .replaceAll('*', '[^/]*')
-    .replaceAll(globstar, '.*');
-  return new RegExp(`^${escaped}$`);
+  // The source deliberately uses only literal paths, * and ** globs.
+  assert.ok(!/[?{}[\]]/.test(glob), `Unsupported test glob: ${glob}`);
+  let expression = '';
+  for (let i = 0; i < glob.length; i += 1) {
+    if (glob.slice(i, i + 3) === '**/') {
+      expression += '(?:.*/)?'; i += 2;
+    } else if (glob.slice(i, i + 2) === '**') {
+      expression += '.*'; i += 1;
+    } else if (glob[i] === '*') {
+      expression += '[^/]*';
+    } else {
+      expression += glob[i].replace(/[.+^$()|\\]/g, '\\$&');
+    }
+  }
+  return new RegExp(`^${expression}$`);
 }
 
 function matches(filterName, inputPath) {
@@ -56,7 +65,11 @@ function matches(filterName, inputPath) {
 
 const cases = [
   ['example/src/App.tsx', ['shared', 'code', 'website'], []],
-  ['example/android/app/build.gradle', ['shared', 'code'], []],
+  ['example/android/app/build.gradle', ['android', 'code'], ['shared', 'ios']],
+  ['example/ios/Podfile', ['ios', 'code'], ['shared', 'android']],
+  ['example/Gemfile', ['ios', 'code'], ['shared', 'android']],
+  ['scripts/verify-ios-integration.mjs', ['ios', 'code'], ['shared', 'android']],
+  ['scripts/verify-android-integration.mjs', ['android', 'code'], ['shared', 'ios']],
   ['example/babel.config.js', ['shared', 'code'], []],
   ['src/index.ts', ['js', 'website', 'code'], []],
   ['src/__tests__/index.test.ts', ['code'], ['js', 'website', 'shared']],
@@ -68,6 +81,28 @@ const cases = [
   ['scripts/__tests__/cache.test.mjs', ['code'], ['shared']],
   ['example/README.md', ['website'], ['shared', 'code']],
   ['README.md', ['website'], ['shared', 'code']],
+  ['ios/Feature.mm', ['ios', 'code'], ['shared', 'android']],
+  ['android/src/main/Feature.kt', ['android', 'code'], ['shared', 'ios']],
+  ['ios/README.md', [], ['ios', 'shared', 'code']],
+  ['website/docs/intro.md', ['website'], ['shared', 'code', 'ios', 'android']],
+  ['website/scripts/build-llms.js', ['website'], ['shared', 'code']],
+  ['scripts/verify-agent-instructions.mjs', ['code', 'tooling'], ['shared', 'ios', 'android']],
+  ['scripts/verify-native-contract.mjs', ['shared', 'code'], []],
+  ['scripts/build-icons.js', ['shared', 'code'], []],
+  ['scripts/new-build-input.js', ['shared', 'code'], []],
+  ['package.json', ['manifest', 'website'], ['shared', 'code']],
+  ['example/package.json', ['manifest'], ['shared', 'code', 'example']],
+  ['.github/ci/ios.sh', ['ios', 'code'], ['android', 'shared']],
+  ['.github/ci/android.sh', ['android', 'code'], ['ios', 'shared']],
+  ['.github/actions/changes/action.yml', ['instructions', 'shared', 'code', 'website'], []],
+  ['type-tests/public-api.tsx', ['code'], ['shared', 'ios', 'android', 'js']],
+  ['example/GUIDE.md', [], ['shared', 'code', 'ios', 'android']],
+  ['scripts/README.md', [], ['shared', 'code', 'tooling']],
+  ['.github/actions/changes/README.md', [], ['shared', 'code']],
+  ['example/jest.config.js', ['code', 'example'], ['shared', 'ios', 'android']],
+  ['example/jest.forbidOnlyReporter.js', ['code', 'example'], ['shared', 'ios', 'android']],
+  ['scripts/verification-utils.mjs', ['code', 'tooling'], ['shared', 'ios', 'android']],
+  ['scripts/dependency-contract.mjs', ['code', 'tooling'], ['shared', 'ios', 'android']],
   ['eslint.config.mjs', ['code'], ['shared']],
   ['jest.setup.ts', ['code'], ['shared']],
   ['.yarnrc.yml', ['shared', 'code', 'website'], []],
@@ -93,10 +128,23 @@ for (const [inputPath, expectedFilters, excludedFilters] of cases) {
 
 console.log('PASS: shared CI path-filter contract');
 
-// 执行工作流的真实检测脚本，覆盖新库、空目录和已接入的 website。
-const detector = template.match(/      - name: Detect website workspace\n        id: project\n        run: \|\n([\s\S]*?)        shell: bash/);
-assert.ok(detector, '缺少 website workspace 检测步骤');
-const detectorScript = detector[1].split('\n').map(line => line.replace(/^          /, '')).join('\n');
+// The same action feeds standard CI and repository-specific consumers.
+assert.match(template, /uses: \.\/\.github\/actions\/changes/);
+assert.match(template, /actionlint:\n    needs: changes\n    if: always\(\)/);
+assert.match(template, /run: test "\$CHANGES_RESULT" = success/);
+assert.match(template, /fetch-depth: 0/);
+for (const platform of ['ios', 'android']) {
+  const job = template.split(`  build-${platform}:`)[1].split(/^  [a-z-]+:/m)[0];
+  assert.ok(job.includes(`needs.changes.outputs.${platform} == 'true'`));
+  assert.ok(job.includes(`hashFiles('.github/ci/${platform}.sh') != ''`));
+  assert.ok(job.includes(`run: bash .github/ci/${platform}.sh`));
+  assert.ok(job.includes(`if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/${platform}.sh') != ''`));
+}
+
+// Execute the actual website detection body without installing or building anything.
+const detector = action.match(/    - name: Detect website workspace\n      id: project\n      shell: bash\n      run: \|\n([\s\S]*?)    - name: Filter changed paths/);
+assert.ok(detector);
+const detectorScript = detector[1].split('\n').map(line => line.replace(/^        /, '')).join('\n');
 const fixture = mkdtempSync(resolve(tmpdir(), 'unif-ci-website-'));
 try {
   const output = resolve(fixture, 'output');
@@ -114,7 +162,7 @@ try {
 } finally {
   rmSync(fixture, { recursive: true, force: true });
 }
-console.log('PASS: optional website workspace contract');
+console.log('PASS: optional website workspace and required failure propagation');
 
 // 文档站会消费原生 example 的组合示例，CI 与实际部署必须使用一致的输入。
 const deployTemplate = readFileSync(resolve(scriptDirectory, '../templates/workflows/deploy-docs.yml'), 'utf8');

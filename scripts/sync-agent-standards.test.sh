@@ -353,6 +353,10 @@ EOF
 if ! bash "$full_sync_script" react-native-design "$full_target" >"$full_output"; then
   fail '目标仓全量同步退出非零'
 fi
+for managed_ci_file in action.yml classify-package.cjs; do
+  cmp -s "$templates_dir/actions/changes/$managed_ci_file" "$full_target/.github/actions/changes/$managed_ci_file" ||
+    fail "全量同步缺少一致的 CI 分类文件:$managed_ci_file"
+done
 assert_managed_marker_exact "$full_target/AGENTS.md" react-native-design '目标仓全量同步'
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$full_target/AGENTS.md" || fail '目标仓全量同步未插入共享 marker'
 grep -Fq "\`react-native-design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 repo 映射'
