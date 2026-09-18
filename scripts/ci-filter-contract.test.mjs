@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,7 +55,7 @@ function matches(filterName, inputPath) {
 }
 
 const cases = [
-  ['example/src/App.tsx', ['shared', 'code'], []],
+  ['example/src/App.tsx', ['shared', 'code', 'website'], []],
   ['example/android/app/build.gradle', ['shared', 'code'], []],
   ['example/babel.config.js', ['shared', 'code'], []],
   ['src/index.ts', ['js', 'website', 'code'], []],
@@ -90,3 +92,36 @@ for (const [inputPath, expectedFilters, excludedFilters] of cases) {
 }
 
 console.log('PASS: shared CI path-filter contract');
+
+// 执行工作流的真实检测脚本，覆盖新库、空目录和已接入的 website。
+const detector = template.match(/      - name: Detect website workspace\n        id: project\n        run: \|\n([\s\S]*?)        shell: bash/);
+assert.ok(detector, '缺少 website workspace 检测步骤');
+const detectorScript = detector[1].split('\n').map(line => line.replace(/^          /, '')).join('\n');
+const fixture = mkdtempSync(resolve(tmpdir(), 'unif-ci-website-'));
+try {
+  const output = resolve(fixture, 'output');
+  const check = expected => {
+    writeFileSync(output, '');
+    const result = spawnSync('bash', ['-e', '-c', detectorScript], { cwd: fixture, env: { ...process.env, GITHUB_OUTPUT: output }, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(output, 'utf8').trim(), `has_website=${expected}`);
+  };
+  check(false);
+  mkdirSync(resolve(fixture, 'website'));
+  check(false);
+  writeFileSync(resolve(fixture, 'website/package.json'), '{"name":"site"}');
+  check(true);
+} finally {
+  rmSync(fixture, { recursive: true, force: true });
+}
+console.log('PASS: optional website workspace contract');
+
+// 文档站会消费原生 example 的组合示例，CI 与实际部署必须使用一致的输入。
+const deployTemplate = readFileSync(resolve(scriptDirectory, '../templates/workflows/deploy-docs.yml'), 'utf8');
+const deployPaths = deployTemplate.split('  workflow_dispatch:')[0].split('    paths:')[1];
+assert.ok(deployPaths, 'docs deploy 缺少 push paths');
+filters.set('deploy', [...deployPaths.matchAll(/^      - '([^']+)'/gm)].map(match => match[1]));
+assert.equal(matches('deploy', 'example/src/examples/MainChatExample/MainChatExample.tsx'), true);
+assert.equal(matches('deploy', 'example/src/__tests__/Composition.test.tsx'), false);
+assert.equal(matches('deploy', 'example/src/examples/Foo/__tests__/Foo.test.tsx'), false);
+console.log('PASS: shared example documentation consumers');
