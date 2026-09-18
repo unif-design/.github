@@ -21,6 +21,13 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'example/src/**'
+      - '!example/src/__tests__/**'
+      - '!example/src/**/__tests__/**'
+      - '!example/src/*.test.*'
+      - '!example/src/**/*.test.*'
+      - '!example/src/*.spec.*'
+      - '!example/src/**/*.spec.*'
       - 'src/**'                          # website 直接 import library 源码
       - 'package.json'
       - 'yarn.lock'
