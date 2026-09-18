@@ -169,6 +169,15 @@ awk '
 
 assert_contains "$website_job" 'needs: changes' 'website job 未依赖 changes'
 assert_contains \
+  "$changes_job" \
+  'has_website: ${{ steps.project.outputs.has_website }}' \
+  'changes job 必须交付真实 website 是否存在'
+assert_contains \
+  "$website_job" \
+  "needs.changes.outputs.has_website == 'true'" \
+  '没有 website 的新库不得运行 website job'
+
+assert_contains \
   "$website_job" \
   "if: needs.changes.outputs.website == 'true'" \
   'website job 未使用 website output 作为运行条件'
