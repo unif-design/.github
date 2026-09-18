@@ -33,6 +33,7 @@ jobs:
           bash scripts/ci-template.test.sh
           bash scripts/setup-repo.test.sh
           bash scripts/sync-agent-standards.test.sh
+          node scripts/sync-llms.test.cjs
         shell: bash
 
       - name: Validate workflows

@@ -166,8 +166,9 @@ echo ""
 # ── 1b. 共享 Agent bootstrap(marker 级覆盖,保留仓库规则)──────────────
 echo "→ [1b] 同步共享 Agent bootstrap(marker 级覆盖)"
 case "$REPO" in
-  react-native-camera|react-native-design|react-native-hms-scan|react-native-umeng)
+  react-native-camera|react-native-design|react-native-hms-scan|react-native-umeng|react-native-chat)
     "$SCRIPT_DIR/sync-agent-standards.sh" "$REPO" "$TARGET"
+    node "$SCRIPT_DIR/sync-llms.cjs" "$REPO" "$TARGET"
     echo "  ✓ AGENTS.md 共享 bootstrap(保留仓库特有规则)"
     ;;
   *)

@@ -18,7 +18,7 @@ GitHub 的免费安全检测保留 Secret scanning、Dependabot alerts 和 Priva
 
 `setup-repo.sh [4/6]` 主动把 Default setup PATCH 成 `not-configured`,四仓统一关闭。
 
-**为什么不上 CodeQL**(小团队私有 RN bridge 库):
+**为什么不上 CodeQL**(小团队维护的 RN bridge 库):
 
 1. **JS/TS 层薄,安全价值低** —— 这批仓主要是 native bridge 胶水 + 薄 JS 包装层,没有 server / SQL / 反序列化 / 用户输入处理这些 CodeQL 真正擅长的攻击面,对 RN bridge 的实际告警基本为空。
 

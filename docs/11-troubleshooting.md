@@ -102,7 +102,7 @@ if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.he
 
 **根因**:Default setup 的 Language auto-detection 是**强制行为**,扫描 repo 内**所有 detect 到**的语言,UI 上 deselect checkbox **对 auto-detected 语言无效**。典型表现(RN 项目):`example/android/` 的 Kotlin 样板被 auto-detect → java-kotlin job `No build command found` 失败;design 的 Gemfile 被检测到 → 自动加回 `ruby`,各仓覆盖面漂移。
 
-**最终决策(2026-06):四仓统一关闭 CodeQL**,不再跟 Default setup 的 auto-detect 较劲。理由:小团队私有 RN bridge 库 JS/TS 层薄、CodeQL 安全价值低,polyglot 仓维护成本 > 收益。详见 [07-security.md](07-security.md)。`setup-repo.sh [4/6]` 已改成主动 PATCH `not-configured` enforce 关闭。
+**最终决策(2026-06):四仓统一关闭 CodeQL**,不再跟 Default setup 的 auto-detect 较劲。理由:小团队维护的 RN bridge 库 JS/TS 层薄、CodeQL 安全价值低,polyglot 仓维护成本 > 收益。详见 [07-security.md](07-security.md)。`setup-repo.sh [4/6]` 已改成主动 PATCH `not-configured` enforce 关闭。
 
 > 备选(将来真要上代码扫描):**单仓**切 **Advanced setup** —— 自己写 `.github/workflows/codeql.yml`,显式 matrix `language: javascript-typescript`,GitHub 不再 auto-detect。
 
