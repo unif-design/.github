@@ -55,7 +55,7 @@ function matches(filterName, inputPath) {
 }
 
 const cases = [
-  ['example/src/App.tsx', ['shared', 'code'], []],
+  ['example/src/App.tsx', ['shared', 'code', 'website'], []],
   ['example/android/app/build.gradle', ['shared', 'code'], []],
   ['example/babel.config.js', ['shared', 'code'], []],
   ['src/index.ts', ['js', 'website', 'code'], []],
@@ -115,3 +115,13 @@ try {
   rmSync(fixture, { recursive: true, force: true });
 }
 console.log('PASS: optional website workspace contract');
+
+// 文档站会消费原生 example 的组合示例，CI 与实际部署必须使用一致的输入。
+const deployTemplate = readFileSync(resolve(scriptDirectory, '../templates/workflows/deploy-docs.yml'), 'utf8');
+const deployPaths = deployTemplate.split('  workflow_dispatch:')[0].split('    paths:')[1];
+assert.ok(deployPaths, 'docs deploy 缺少 push paths');
+filters.set('deploy', [...deployPaths.matchAll(/^      - '([^']+)'/gm)].map(match => match[1]));
+assert.equal(matches('deploy', 'example/src/examples/MainChatExample/MainChatExample.tsx'), true);
+assert.equal(matches('deploy', 'example/src/__tests__/Composition.test.tsx'), false);
+assert.equal(matches('deploy', 'example/src/examples/Foo/__tests__/Foo.test.tsx'), false);
+console.log('PASS: shared example documentation consumers');
