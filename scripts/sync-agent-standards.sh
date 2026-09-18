@@ -29,10 +29,11 @@ repo_name="$1"
 target_dir="${2:-$PWD}"
 
 case "$repo_name" in
-  react-native-camera) skill=camera; package='@unif/react-native-camera' ;;
-  react-native-design) skill=design; package='@unif/react-native-design' ;;
-  react-native-hms-scan) skill=hms-scan; package='@unif/react-native-hms-scan' ;;
-  react-native-umeng) skill=umeng-share; package='@unif/react-native-umeng' ;;
+  react-native-camera) package='@unif/react-native-camera' ;;
+  react-native-design) package='@unif/react-native-design' ;;
+  react-native-hms-scan) package='@unif/react-native-hms-scan' ;;
+  react-native-umeng) package='@unif/react-native-umeng' ;;
+  react-native-chat) package='@unif/react-native-chat' ;;
   *) exit 2 ;;
 esac
 
@@ -74,8 +75,8 @@ trap 'rm -rf "$temp_dir"' EXIT
 rendered="$temp_dir/rendered.md"
 updated="$temp_dir/AGENTS.md"
 
-awk -v repo="$repo_name" -v skill_name="$skill" \
-  '{ gsub(/\{\{REPO\}\}/, repo); gsub(/\{\{SKILL\}\}/, skill_name); print }' \
+awk -v repo="$repo_name" \
+  '{ gsub(/\{\{REPO\}\}/, repo); print }' \
   "$template" >"$rendered"
 
 if [[ "$begin_count" -eq 1 ]]; then
@@ -96,6 +97,7 @@ else
   awk -v replacement="$rendered" '
     !inserted && /^# / {
       print
+      print ""
       while ((getline line < replacement) > 0) print line
       close(replacement)
       inserted = 1

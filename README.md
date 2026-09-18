@@ -1,70 +1,44 @@
-# unif-design / .github
+# Unif 组织配置
 
-`unif-design` 组织的**默认配置仓库** —— 集中维护 org 共享的 CI workflow、文档标准、PR/Issue 模板。
+集中维护 `unif-design` 的 CI、发布流程、开发入口和 GitHub 模板。
 
-## 文件作用
+## 按任务查找
 
-| 文件 | 作用 | 共享机制 |
-|---|---|---|
-| `templates/` | 标准 workflow + 配置文件源(`ci.yml`、共享 setup action、release / lefthook / PR&Issue 模板 / SECURITY;native 仓另发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`) | `scripts/sync-repo.sh` 下发到各 repo |
-| `templates/AGENTS.md` | camera / design / hms-scan / umeng 四仓共享 Agent bootstrap 唯一真相源;完整标准在 `unif-design/skills` 的 `rn-library` Skill | `scripts/sync-agent-standards.sh` marker 级同步 |
-| `scripts/sync-repo.sh` | 把 `templates/` 同步到目标 repo(变量替换 + 条件分发;四仓另同步共享 Agent bootstrap;不 commit / 不 push) | 见 [AUTOMATION docs/13](docs/13-sync.md) |
-| `scripts/sync-agent-standards.sh` | 只刷新四仓根 `AGENTS.md` 的共享 bootstrap marker 区块,不改仓库特有规则(不 commit / 不 push) | 可独立运行,也由全量同步按仓名调用 |
-| `scripts/setup-repo.sh` | 配 GitHub 端(merge / ruleset / security / Pages) | 见 [ONBOARDING](ONBOARDING.md) |
-| `.github/workflows/pr-agent.yml` | PR Agent + DeepSeek 自动 review,reusable workflow | 各 repo 写 5 行 caller 调用 |
-| `.github/PULL_REQUEST_TEMPLATE.md` | 全 org 默认 PR 模板(通用版)| repo 自己有同名文件则 override |
-| `CONTRIBUTING.md` | 全 org 通用贡献指南 | 同上 |
-| `AUTOMATION.md` | 自动化流程标准(CI / 发版 / 依赖 / branch protection)| 各 repo 用链接引用 |
+| 任务                    | 入口                                   |
+| ----------------------- | -------------------------------------- |
+| 接入新仓库              | [接入指南](ONBOARDING.md)              |
+| 查看 CI、发布和分支规则 | [自动化标准](AUTOMATION.md)            |
+| 更新共享文件            | [同步说明](docs/13-sync.md)            |
+| 接入 PR 自动审查        | [PR Review](docs/08-pr-review.md)      |
+| 排查流水线问题          | [故障排查](docs/11-troubleshooting.md) |
 
-## Reusable workflow 调用
+## 同步到已有仓库
 
-任何 unif-design 下的 repo 接入 PR Agent + DeepSeek 自动 review:
+只更新 Camera、Design、HMS Scan、Umeng、Chat 的 AGENTS 共享入口：
 
-```yaml
-# 在你的 repo 加 .github/workflows/pr-agent.yml
-name: PR Agent
-
-on:
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-  issue_comment:
-    types: [created]
-
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-
-jobs:
-  call:
-    uses: unif-design/.github/.github/workflows/pr-agent.yml@main
-    secrets:
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+```sh
+./scripts/sync-agent-standards.sh react-native-design ../react-native-design
 ```
 
-在自己的 repo 根目录可选加 `.pr_agent.toml` 补项目特有的 review prompt(覆盖 org 通用 prompt)。
-
-## 标准 workflow 模板 + 一键同步
-
-`templates/` 是所有仓 workflow / 配置文件的**唯一标准源**,`templates/AGENTS.md` 是 `react-native-camera` / `react-native-design` / `react-native-hms-scan` / `react-native-umeng` 四仓共享 Agent bootstrap 唯一真相源;完整共享标准在 `unif-design/skills` 的 `rn-library` Skill。`scripts/sync-repo.sh <repo>` 一键下发(变量替换 + 条件分发;命中四仓时另同步共享 Agent bootstrap;不 commit / 不 push,改动留给各仓 review + PR)。
+完整同步 workflow 与配置：
 
 ```sh
 ./scripts/sync-repo.sh react-native-design
 ```
 
-`ci.yml` 取四仓最优并集(actionlint 加固 / `changes` 门控 / test-only 排除 / rolling native cache / build-android temurin / build-ios macos-26+prebuilt),共享 setup action 只缓存 Yarn package download cache 并始终执行 immutable install。两者都由 sync 强制统一;`.pr_agent.toml` 等带 repo 特化的配置仅缺时创建;已停用的 Dependabot 配置和自动合并 workflow会被主动移除。native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan)按 `HAS_NATIVE_SRC` 条件多发 `native-lint.yml`(required check:`lint-cpp` / `lint-kotlin`)+ `nightly-build-check.yml`(advisory canary)+ `.clang-format`。详见 [docs/13-sync.md](docs/13-sync.md)。
+同步会修改目标仓库文件；完整同步还会移除已停用的配置。执行后检查差异，各仓库自行提交和交付。GitHub 远端设置由 `setup-repo.sh` 修改，使用前阅读接入指南。
 
-上述四仓的根 `AGENTS.md` 例外:全量同步会调用 `scripts/sync-agent-standards.sh`,但它只替换 `BEGIN/END UNIF REACT NATIVE STANDARD` marker 之间的共享 bootstrap,不会整文件覆盖。四仓特有规则继续维护在各自根 `AGENTS.md` 的 marker 外;非四仓明确跳过此步骤。marker 脚本只更新 bootstrap,marker 外正文仍须语义审查。也可为四仓单独运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`。两个同步脚本都只修改目标工作树,不 commit / 不 push。历史 `docs/superpowers/specs/` 与 `docs/superpowers/plans/` 记录当时设计,不回写。
+只同步 LLM 文档生成实现（保留各库专属检查）：
 
-## 自动化流程标准
+```sh
+node scripts/sync-llms.cjs react-native-design ../react-native-design
+node scripts/sync-llms.cjs react-native-design ../react-native-design --check
+```
 
-整套 CI / 发版 / 人工依赖升级 / Branch protection 标准 + 排查 SOP,见 [AUTOMATION.md](AUTOMATION.md)。
+## 维护来源
 
-参考实例:[`unif-design/react-native-design`](https://github.com/unif-design/react-native-design)。
-
-## 维护
-
-- **Reusable workflow**:`.github/workflows/pr-agent.yml` 合入 `main` 后,对引用 `@main` 的 caller repo 立即生效,不需要逐仓 sync。
-- **复制 / marker 模板**:`templates/` 合入 `main` 只更新标准源;必须逐仓运行 `scripts/sync-repo.sh`,或仅更新 Agent 标准时运行 `scripts/sync-agent-standards.sh`,再 review diff 并通过各仓 PR + CI 合入。
-
-Reusable workflow 如果改用 `@v1` 这类 tag 引用,则由各 caller 自行升级。
+- [LLM 文档模板](templates/llms/)：五个文档站共用索引、路由与产物校验，Chat 保留代码 API 的专属转换；产物内容由各库文档和包声明生成。
+- [templates](templates/)：复制到各仓库的文件源；更改后需要重新同步。
+- [AGENTS 模板](templates/AGENTS.md)：只指向 [unif-portal-dev-skills](https://github.com/unif-skill/unif-portal-dev-skills) 和项目开发资料。
+- [共享 PR workflow](.github/workflows/pr-agent.yml)：引用 `@main` 的仓库在源更新后直接采用。
+- [贡献指南](CONTRIBUTING.md)：组织通用贡献约定。
