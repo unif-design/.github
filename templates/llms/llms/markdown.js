@@ -115,7 +115,10 @@ function protectCode(source) {
     'gu'
   );
 
-  for (let index = 0; index < source.length; ) {
+  for (
+    let index = 0;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     const line = lineAt(source, index);
     const opener = line.text.match(/^ {0,3}(`{3,}|~{3,})/u);
     if (!opener) {
@@ -348,7 +351,10 @@ function findJsxElementEnd(source, start, sourceName = '<export declaration>') {
   if (opening.selfClosing) return opening.end;
 
   const elementStack = [opening.name];
-  for (let index = opening.end; index < source.length; ) {
+  for (
+    let index = opening.end;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     if (source[index] === '{') {
       index = findCodeExpressionEnd(source, index, sourceName);
       continue;
@@ -382,7 +388,10 @@ function findJsxElementEnd(source, start, sourceName = '<export declaration>') {
 
 function findRegexLiteralEnd(source, start) {
   let inCharacterClass = false;
-  for (let index = start + 1; index < source.length; ) {
+  for (
+    let index = start + 1;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     const character = source[index];
     if (character === '\\') {
       index += 2;
@@ -429,7 +438,10 @@ function findBalancedEnd(source, start) {
   );
   let sawFunctionBody = false;
 
-  for (let index = start; index < source.length; ) {
+  for (
+    let index = start;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     const context = contexts.at(-1);
     const character = source[index];
     const next = source[index + 1];
@@ -551,7 +563,10 @@ function findTagEnd(source, start, sourceName) {
   const root = { kind: 'code', terminator: null, stack: [] };
   const contexts = [root];
 
-  for (let index = start; index < source.length; ) {
+  for (
+    let index = start;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     const context = contexts.at(-1);
     const character = source[index];
     const next = source[index + 1];
@@ -651,7 +666,10 @@ function findCodeExpressionEnd(source, start, sourceName) {
   const root = { kind: 'code', terminator: '}', stack: [] };
   const contexts = [root];
 
-  for (let index = start + 1; index < source.length; ) {
+  for (
+    let index = start + 1;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     const context = contexts.at(-1);
     const character = source[index];
     const next = source[index + 1];
@@ -762,7 +780,10 @@ function isLiveDemoClosingAt(source, index) {
 function findNextLiveDemoTokenInJavaScript(source, start) {
   const contexts = [{ kind: 'code', terminator: null, stack: [] }];
 
-  for (let index = start; index < source.length; ) {
+  for (
+    let index = start;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     const context = contexts.at(-1);
     const character = source[index];
     const next = source[index + 1];
@@ -864,7 +885,10 @@ function findNextLiveDemoTokenInJavaScript(source, start) {
 }
 
 function findLiveDemoClose(source, start, sourceName) {
-  for (let index = start; index < source.length; ) {
+  for (
+    let index = start;
+    index < source.length /* Advance by the parsed token below. */;
+  ) {
     if (source.startsWith('</LiveDemo', index)) {
       const closeMatch = source.slice(index).match(/^<\/LiveDemo[\t ]*>/u);
       if (!closeMatch) {
@@ -1310,7 +1334,10 @@ function scanReferenceDefinition(source, lineStart) {
 
 function findReferenceDefinitionTargets(source) {
   const definitions = [];
-  for (let lineStart = 0; lineStart <= source.length; ) {
+  for (
+    let lineStart = 0;
+    lineStart <= source.length /* Advance by the parsed token below. */;
+  ) {
     const newline = source.indexOf('\n', lineStart);
     const definition = scanReferenceDefinition(source, lineStart);
     if (definition !== null) definitions.push(definition);
@@ -1336,7 +1363,10 @@ function findLinkTargetsAndReferenceUsages(
   const usages = new Map();
   let rangeIndex = 0;
 
-  for (let cursor = 0; cursor < source.length; ) {
+  for (
+    let cursor = 0;
+    cursor < source.length /* Advance by the parsed token below. */;
+  ) {
     while (
       rangeIndex < excludedRanges.length &&
       cursor >= excludedRanges[rangeIndex].end
