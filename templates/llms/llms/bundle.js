@@ -123,6 +123,7 @@ function buildBundle(site) {
     REAL_FILE_OPS.readFileSync(packageFile, 'utf8')
   );
   const versionNote = `<!-- Generated from ${packageLabel(packageInfo)}; edit source documentation. -->\n`;
+  const sourceNote = `<!-- Generated from ${packageInfo.name}; edit source documentation. -->\n`;
   const sourceDocuments = files.map((file) => {
     const sourcePath = path.relative(docsDir, file).split(path.sep).join('/');
     const sourceName = `docs/${sourcePath}`;
@@ -162,7 +163,7 @@ function buildBundle(site) {
       );
 
     pages[document.outputPath] = Buffer.from(
-      assembleMarkdown([pageFrontmatter(document.raw), versionNote, pageBody])
+      assembleMarkdown([pageFrontmatter(document.raw), sourceNote, pageBody])
     );
     tocTitles.push(title);
     bodyBlocks.push(

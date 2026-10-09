@@ -305,6 +305,32 @@ test('bundle is built in memory and installs idempotently without touching unrel
   });
 });
 
+test('a package version change only updates bundle metadata, not individual document pages', () => {
+  withTempDirectory((directory) => {
+    const site = createTempSite(directory);
+    const before = b.buildBundle(site);
+    const manifest = path.join(directory, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+    writeFixture(manifest, JSON.stringify({ ...pkg, version: '1.2.4' }));
+    const after = b.buildBundle(site);
+    const changed = Object.keys(before)
+      .filter((name) => !before[name].equals(after[name]))
+      .sort();
+    assert.deepStrictEqual(changed, ['llms-full.txt', 'llms.txt']);
+    for (const [name, content] of Object.entries(after)) {
+      if (/^md\/.+\.md$/u.test(name)) {
+        assert.match(
+          content.toString('utf8'),
+          /<!-- Generated from @unif\/fixture; edit source documentation\. -->/u
+        );
+        assert(!content.toString('utf8').includes('@unif/fixture@'));
+      }
+    }
+    for (const name of ['llms.txt', 'llms-full.txt'])
+      assert(after[name].toString('utf8').includes('@unif/fixture@1.2.4'));
+  });
+});
+
 test('full bundle ends with exactly one newline', () => {
   withTempDirectory((directory) => {
     const site = createTempSite(directory);
