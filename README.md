@@ -38,6 +38,7 @@ node scripts/sync-llms.cjs react-native-design ../react-native-design --check
 ## 维护来源
 
 - [LLM 文档模板](templates/llms/)：五个文档站共用索引、路由与产物校验，Chat 保留代码 API 的专属转换；产物内容由各库文档和包声明生成。
+- 单页来源注释只保留包名；包版本集中在 `llms.txt`、`llms-full.txt` 和包声明。只升级包版本时，`md/*.md` 与单页索引保持不变，避免每次发版重写全部文档。
 - [templates](templates/)：复制到各仓库的文件源；更改后需要重新同步。
 - [AGENTS 模板](templates/AGENTS.md)：只指向 [unif-portal-dev-skills](https://github.com/unif-skill/unif-portal-dev-skills) 和项目开发资料。
 - [共享 PR workflow](.github/workflows/pr-agent.yml)：引用 `@main` 的仓库在源更新后直接采用。
