@@ -72,18 +72,19 @@ PR template(`.github/PULL_REQUEST_TEMPLATE.md`)自动套上,填:
 - 验证清单
 - 影响范围
 
-### 6. CI 6 个 check 必须全绿
+### 6. CI 7 个 check 必须全绿
 
 | Check | 跑什么 | 阻塞合并 |
 |---|---|---|
 | `CI / actionlint` | 校验 workflow YAML / 表达式 / `run:` shell | ✅ |
+| `CI / verified` | 核对全部适用结果并保存 PR 验证凭据 | ✅ |
 | `CI / lint` | `yarn lint`(eslint + prettier)| ✅ |
 | `CI / test` | `yarn test --maxWorkers=2 --coverage` | ✅ |
 | `CI / build-library` | `yarn prepare`(bob build → `lib/`)| ✅ |
 | `CI / build-android` | turbo 跑 example android 编译 | ✅ |
 | `CI / build-ios` | turbo 跑 example iOS 编译(macos-latest)| ✅ |
 
-ruleset 配了 6 个 check 为 required,缺一不可。**native 仓**(umeng / hms-scan)另有 `native-lint.yml` 的 `CI / lint-cpp`(clang-format)+ `CI / lint-kotlin`(ktlint)两个 required check = 共 8 个(见 [CI workflow → native lint](./03-ci.md))。
+ruleset 配了 7 个 check 为 required,缺一不可。**native 仓**(umeng / hms-scan)另有 `native-lint.yml` 的 `CI / lint-cpp`(clang-format)+ `CI / lint-kotlin`(ktlint)两个 required check = 共 9 个(见 [CI workflow → native lint](./03-ci.md))。
 
 ### 7. self-review + Squash and merge
 

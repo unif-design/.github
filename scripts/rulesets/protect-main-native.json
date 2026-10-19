@@ -41,6 +41,7 @@
           { "context": "build-library" },
           { "context": "build-android" },
           { "context": "build-ios" },
+          { "context": "verified" },
           { "context": "lint-cpp" },
           { "context": "lint-kotlin" }
         ]

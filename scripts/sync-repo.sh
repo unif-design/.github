@@ -157,6 +157,8 @@ render workflows/ci.yml                       .github/workflows/ci.yml
 render actions/setup/action.yml              .github/actions/setup/action.yml
 render actions/changes/action.yml            .github/actions/changes/action.yml
 render actions/changes/classify-package.cjs    .github/actions/changes/classify-package.cjs
+render actions/verification/verification.cjs   .github/actions/verification/verification.cjs
+render actions/verification/verification.test.cjs .github/actions/verification/verification.test.cjs
 render workflows/pr-title.yml                 .github/workflows/pr-title.yml
 render workflows/pr-agent.yml                 .github/workflows/pr-agent.yml
 render lefthook.yml                           lefthook.yml

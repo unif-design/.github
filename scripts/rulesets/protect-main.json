@@ -40,7 +40,8 @@
           { "context": "test" },
           { "context": "build-library" },
           { "context": "build-android" },
-          { "context": "build-ios" }
+          { "context": "build-ios" },
+          { "context": "verified" }
         ]
       }
     }
