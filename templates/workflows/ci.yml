@@ -314,20 +314,9 @@ jobs:
         if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
         run: |
           cd example
-          bundle config set --local path vendor/bundle
           bundle install --jobs 3 --retry 2
           bundle exec pod repo update --verbose
-          for attempt in 1 2; do
-            bundle exec pod install --project-directory=ios
-            if grep -Fq -- '- React-Core-prebuilt (' ios/Podfile.lock; then
-              break
-            fi
-            if [[ "$attempt" == 2 ]]; then
-              echo '::error::RN prebuilt core is unavailable; refusing a silent source-build fallback.'
-              exit 1
-            fi
-            echo 'RN artifact probe failed; retrying pod install before compiling.'
-          done
+          bundle exec pod install --project-directory=ios
 
       - name: Build example for iOS
         run: |

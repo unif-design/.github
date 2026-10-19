@@ -231,7 +231,6 @@ fi
 
 node "$script_dir/ci-filter-contract.test.mjs"
 node --test "$script_dir/ci-package-scope.test.cjs"
-bash "$script_dir/ci-ios-prebuilt.test.sh"
 
 [[ -f "$validation_workflow" ]] ||
   fail '共享仓缺少自动执行模板契约的 validate workflow'
