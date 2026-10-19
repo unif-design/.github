@@ -270,17 +270,30 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
+      - name: Cache iOS dependency downloads
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            example/vendor/bundle
+            ~/Library/Caches/CocoaPods
+            ~/Library/Caches/ReactNative
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-deps-v1-${{ hashFiles('yarn.lock', 'example/Gemfile.lock', 'example/ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ios-deps-v1-
+
       - name: Install cocoapods
         if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
         run: |
           cd example
-          bundle install
+          bundle install --jobs 3 --retry 2
           bundle exec pod repo update --verbose
           bundle exec pod install --project-directory=ios
 
       - name: Build example for iOS
         run: |
-          yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
+          sysctl hw.ncpu hw.memsize
+          /usr/bin/time -l yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
 
       - name: Verify iOS integration
         if: hashFiles('.github/ci/ios.sh') != ''
