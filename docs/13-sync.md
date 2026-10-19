@@ -59,11 +59,16 @@ templates/
 | `changes` paths-filter job(`dorny/paths-filter` v4)+ lint/test/build-* 挂 `needs: changes` | umeng / hms-scan | 纯文档 / 无关 PR 直接 skip build,省 CI |
 | test-only 路径排除 + rolling Turbo/Gradle key | 统一标准 | 测试改动只跑 lint/test;新 commit restore 旧 cache 后仍可保存增量 |
 | setup action 只缓存 Yarn package cache,始终 immutable install | 统一标准 | 避免多 workspace `node_modules` 大缓存与旧 install-state 假命中 |
+| iOS 下载缓存与 ccache | 统一标准 | 缓存 Gem、Pod、RN 下载以及编译器校验的结果；仍运行 pod install、原生构建与原有测试 |
 | build-android `distribution: temurin` | design | runner toolcache 预装,避开 zulu/Azul CDN 偶发 520 |
 | build-ios `macos-26` + `XCODE_VERSION: 26.5` + `RCT_USE_PREBUILT_RNCORE=1` | umeng / hms-scan | 26.5 修好 codegen `'memory' file not found`;prebuilt 省源码编译 5-10 分钟 |
 | `setup-xcode` pin v1.7.0(`ed7a3b1...`) | design / camera | 最新可用 pin |
 
 6 个 required check:`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios`。`changes` 永远 success、**不**进 required checks。**native 仓**(umeng / hms-scan)另发 `native-lint.yml`,再加 `lint-cpp` / `lint-kotlin` = 8 个(见下方覆盖策略的「条件分发」)。
+
+iOS 编译缓存使用现有标准 `macos-26` Runner，每个缓存目录上限 2 GB，按架构、Xcode、锁文件和提交保存增量。ccache 使用严格默认校验和编译器内容摘要，不采用 RN 默认的宽松头文件检查。各库 `turbo.json` 的 `build:ios` 任务需要在 `env` 中包含 `USE_CCACHE`，在 `passThroughEnv` 中包含 `CCACHE_*`；保持 Turbo 的严格环境模式。同步脚本不覆盖各库的 `turbo.json`，首次接入时需同时更新这两项。
+
+Pod 安装后核对 `React-Core-prebuilt`。下载探测临时失败会再安装一次；两次都退回源码模式时明确失败，避免配置要求预编译、实际却默默编译 RN 全部源码。原有 JS、原生测试、覆盖率和构建架构不变。
 
 ## 用法
 

@@ -239,6 +239,11 @@ jobs:
       TURBO_CACHE_DIR: .turbo/ios
       RCT_USE_RN_DEP: 1
       RCT_USE_PREBUILT_RNCORE: 1
+      USE_CCACHE: 1
+      CCACHE_DIR: ${{ github.workspace }}/.turbo/ccache
+      CCACHE_CONFIGPATH: ${{ github.workspace }}/.turbo/ccache.conf
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
 
     steps:
       - name: Checkout
@@ -270,18 +275,68 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
+      - name: Cache iOS dependency downloads
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            example/vendor/bundle
+            ~/Library/Caches/CocoaPods
+            ~/Library/Caches/ReactNative
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-deps-v1-${{ hashFiles('yarn.lock', 'example/Gemfile.lock', 'example/ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ios-deps-v1-
+
+      - name: Cache iOS compiler outputs
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode-${{ env.XCODE_VERSION }}-ccache-v1-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ env.XCODE_VERSION }}-ccache-v1-${{ hashFiles('yarn.lock') }}-
+
+      - name: Configure compiler cache
+        id: ccache
+        if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
+        run: |
+          if ! command -v ccache >/dev/null 2>&1; then
+            brew install ccache
+          fi
+          # Keep ccache's strict defaults instead of RN's relaxed header checks.
+          mkdir -p "$(dirname "$CCACHE_CONFIGPATH")"
+          : > "$CCACHE_CONFIGPATH"
+          ccache --zero-stats
+          ccache --show-config
+          sysctl hw.ncpu hw.memsize
+
       - name: Install cocoapods
         if: env.turbo_cache_hit != 1 || hashFiles('.github/ci/ios.sh') != ''
         run: |
           cd example
-          bundle install
+          bundle config set --local path vendor/bundle
+          bundle install --jobs 3 --retry 2
           bundle exec pod repo update --verbose
-          bundle exec pod install --project-directory=ios
+          for attempt in 1 2; do
+            bundle exec pod install --project-directory=ios
+            if grep -Fq -- '- React-Core-prebuilt (' ios/Podfile.lock; then
+              break
+            fi
+            if [[ "$attempt" == 2 ]]; then
+              echo '::error::RN prebuilt core is unavailable; refusing a silent source-build fallback.'
+              exit 1
+            fi
+            echo 'RN artifact probe failed; retrying pod install before compiling.'
+          done
 
       - name: Build example for iOS
         run: |
-          yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
+          /usr/bin/time -l yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
 
       - name: Verify iOS integration
         if: hashFiles('.github/ci/ios.sh') != ''
         run: bash .github/ci/ios.sh
+
+      - name: Report compiler cache
+        if: always() && steps.ccache.outcome == 'success'
+        run: ccache --show-stats
