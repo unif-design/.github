@@ -48,6 +48,46 @@ trap cleanup EXIT
 [[ -f "$template" ]] || fail "CI 模板不存在:$template"
 [[ -f "$setup_template" ]] || fail "setup action 模板不存在:$setup_template"
 
+# Exercise the generated launcher with Xcode's stripped environment and spaced paths.
+awk '
+  /      - name: Configure compiler cache/ { in_step = 1; next }
+  in_step && /^      - name:/ { exit }
+  in_step && /        run: \|/ { in_run = 1; next }
+  in_run { sub(/^          /, ""); print }
+' "$template" > "$workspace/configure-cache.sh"
+fake_bin="$workspace/compiler tools"
+mkdir -p "$fake_bin" "$workspace/runner temp"
+cat > "$fake_bin/ccache" <<'MOCK'
+#!/bin/bash
+set -e
+if [[ $1 == --* ]]; then exit 0; fi
+: "${CCACHE_CONFIGPATH:?missing explicit configuration}"
+grep -Fxq 'compiler_check = content' "$CCACHE_CONFIGPATH"
+grep -Fxq 'max_size = 2G' "$CCACHE_CONFIGPATH"
+printf '%s\0' "$@" > "$CCACHE_CONFIGPATH.args"
+exit 23
+MOCK
+printf '#!/bin/sh\nexit 0\n' > "$fake_bin/sysctl"
+chmod +x "$fake_bin/ccache" "$fake_bin/sysctl"
+CCACHE_DIR="$workspace/compiler cache" \
+CCACHE_CONFIGPATH="$workspace/cache config/strict.conf" \
+XCODE_XCCONFIG_FILE="$workspace/cache config/cache.xcconfig" \
+RUNNER_TEMP="$workspace/runner temp" PATH="$fake_bin:$PATH" \
+  bash "$workspace/configure-cache.sh"
+assert_contains "$workspace/cache config/strict.conf" \
+  "cache_dir = $workspace/compiler cache" 'compiler cache directory was lost'
+assert_not_contains "$workspace/cache config/strict.conf" \
+  'sloppiness' 'compiler cache must retain strict checks'
+assert_contains "$workspace/cache config/cache.xcconfig" \
+  "C_COMPILER_LAUNCHER = $workspace/runner temp/ccache-launcher" 'Xcode launcher is not wired'
+launcher_status=0
+env -i "$workspace/runner temp/ccache-launcher" '/path with spaces/clang' '-DNAME=a b' \
+  || launcher_status=$?
+[[ $launcher_status == 23 ]] || fail 'compiler failure was swallowed'
+printf '%s\0' '/path with spaces/clang' '-DNAME=a b' > "$workspace/expected-arguments"
+cmp "$workspace/expected-arguments" "$workspace/cache config/strict.conf.args" \
+  || fail 'compiler arguments were changed'
+
 assert_contains \
   "$changes_action" \
   'uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3' \

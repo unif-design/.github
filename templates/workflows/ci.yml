@@ -239,11 +239,9 @@ jobs:
       TURBO_CACHE_DIR: .turbo/ios
       RCT_USE_RN_DEP: 1
       RCT_USE_PREBUILT_RNCORE: 1
-      USE_CCACHE: 1
+      XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.turbo/ccache.xcconfig
       CCACHE_DIR: ${{ github.workspace }}/.turbo/ccache
       CCACHE_CONFIGPATH: ${{ github.workspace }}/.turbo/ccache.conf
-      CCACHE_COMPILERCHECK: content
-      CCACHE_MAXSIZE: 2G
 
     steps:
       - name: Checkout
@@ -292,9 +290,9 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-xcode-${{ env.XCODE_VERSION }}-ccache-v1-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode-${{ env.XCODE_VERSION }}-ccache-v2-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ env.XCODE_VERSION }}-ccache-v1-${{ hashFiles('yarn.lock') }}-
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ env.XCODE_VERSION }}-ccache-v2-${{ hashFiles('yarn.lock') }}-
 
       - name: Configure compiler cache
         id: ccache
@@ -303,9 +301,18 @@ jobs:
           if ! command -v ccache >/dev/null 2>&1; then
             brew install ccache
           fi
-          # Keep ccache's strict defaults instead of RN's relaxed header checks.
+          # Xcode compiler launchers do not inherit arbitrary job environment variables.
           mkdir -p "$(dirname "$CCACHE_CONFIGPATH")"
-          : > "$CCACHE_CONFIGPATH"
+          printf 'cache_dir = %s\ncompiler_check = content\nmax_size = 2G\n' "$CCACHE_DIR" > "$CCACHE_CONFIGPATH"
+          launcher="$RUNNER_TEMP/ccache-launcher"
+          {
+            printf '#!/bin/bash\n'
+            printf 'export CCACHE_CONFIGPATH=%q\n' "$CCACHE_CONFIGPATH"
+            printf 'exec %q "$@"\n' "$(command -v ccache)"
+          } > "$launcher"
+          chmod +x "$launcher"
+          # CI does not consume the IDE's source index. Keep compiler validation unchanged.
+          printf 'C_COMPILER_LAUNCHER = %s\nCOMPILER_INDEX_STORE_ENABLE = NO\n' "$launcher" > "$XCODE_XCCONFIG_FILE"
           ccache --zero-stats
           ccache --show-config
           sysctl hw.ncpu hw.memsize

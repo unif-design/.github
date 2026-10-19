@@ -66,7 +66,7 @@ templates/
 
 6 个 required check:`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios`。`changes` 永远 success、**不**进 required checks。**native 仓**(umeng / hms-scan)另发 `native-lint.yml`,再加 `lint-cpp` / `lint-kotlin` = 8 个(见下方覆盖策略的「条件分发」)。
 
-iOS 编译缓存使用现有标准 `macos-26` Runner，每个缓存目录上限 2 GB，按架构、Xcode、锁文件和提交保存增量。ccache 使用严格默认校验和编译器内容摘要，不采用 RN 默认的宽松头文件检查。各库 `turbo.json` 的 `build:ios` 任务需要在 `env` 中包含 `XCODE_VERSION`、`USE_CCACHE`，在 `passThroughEnv` 中包含 `CCACHE_*`；保持 Turbo 的严格环境模式。同步脚本不覆盖各库的 `turbo.json`，首次接入时需同时更新这些声明。Bundler 沿用各库已提交的 `example/.bundle/config`，不在 CI 中改写参与 Turbo 摘要的配置文件。
+iOS 编译缓存使用现有标准 `macos-26` Runner，每个缓存目录上限 2 GB，按架构、Xcode、锁文件和提交保存增量。ccache 通过 Apple 的 `C_COMPILER_LAUNCHER` 接入，启动器显式读取严格配置，使用编译器内容摘要，不采用 RN 默认的宽松头文件检查。CI 关闭未消费的 IDE 索引生成，保留编译检查和所有架构。各库 `turbo.json` 的 `build:ios` 任务需要在 `env` 中包含 `XCODE_VERSION`、`XCODE_XCCONFIG_FILE`，在 `inputs` 中包含 `$TURBO_ROOT$/.github/workflows/ci.yml`；保持 Turbo 的严格环境模式。同步脚本不覆盖各库的 `turbo.json`，首次接入时需同时更新这些声明。Bundler 沿用各库已提交的 `example/.bundle/config`，不在 CI 中改写参与 Turbo 摘要的配置文件。
 
 保留各库 Podfile 选择的构建模式。Camera 为 Nitro／Video 的头文件兼容性显式使用 RN Core 源码构建，不能统一强制使用预编译包。原有 JS、原生测试、覆盖率和构建架构不变。
 
