@@ -59,14 +59,14 @@ templates/
 | `changes` paths-filter job(`dorny/paths-filter` v4)+ lint/test/build-* 挂 `needs: changes` | umeng / hms-scan | 纯文档 / 无关 PR 直接 skip build,省 CI |
 | test-only 路径排除 + rolling Turbo/Gradle key | 统一标准 | 测试改动只跑 lint/test;新 commit restore 旧 cache 后仍可保存增量 |
 | setup action 只缓存 Yarn package cache,始终 immutable install | 统一标准 | 避免多 workspace `node_modules` 大缓存与旧 install-state 假命中 |
-| iOS 下载缓存与 ccache | 统一标准 | 缓存 Gem、Pod、RN 下载以及编译器校验的结果；仍运行 pod install、原生构建与原有测试 |
+| iOS 下载缓存 | 统一标准 | 缓存 Gem、Pod、RN 下载；仍运行 bundle install、pod install、原生构建与原有测试 |
 | build-android `distribution: temurin` | design | runner toolcache 预装,避开 zulu/Azul CDN 偶发 520 |
 | build-ios `macos-26` + `XCODE_VERSION: 26.5` + `RCT_USE_PREBUILT_RNCORE=1` | umeng / hms-scan | 26.5 修好 codegen `'memory' file not found`;prebuilt 省源码编译 5-10 分钟 |
 | `setup-xcode` pin v1.7.0(`ed7a3b1...`) | design / camera | 最新可用 pin |
 
 6 个 required check:`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios`。`changes` 永远 success、**不**进 required checks。**native 仓**(umeng / hms-scan)另发 `native-lint.yml`,再加 `lint-cpp` / `lint-kotlin` = 8 个(见下方覆盖策略的「条件分发」)。
 
-iOS 编译缓存使用现有标准 `macos-26` Runner，每个缓存目录上限 2 GB，按架构、Xcode、锁文件和提交保存增量。ccache 通过 Apple 的 `C_COMPILER_LAUNCHER` 接入，启动器显式读取严格配置，使用编译器内容摘要，不采用 RN 默认的宽松头文件检查。CI 关闭未消费的 IDE 索引生成，保留编译检查和所有架构。各库 `turbo.json` 的 `build:ios` 任务需要在 `env` 中包含 `XCODE_VERSION`、`XCODE_XCCONFIG_FILE`，在 `inputs` 中包含 `$TURBO_ROOT$/.github/workflows/ci.yml`；保持 Turbo 的严格环境模式。同步脚本不覆盖各库的 `turbo.json`，首次接入时需同时更新这些声明。Bundler 沿用各库已提交的 `example/.bundle/config`，不在 CI 中改写参与 Turbo 摘要的配置文件。
+iOS 使用现有标准 `macos-26` Runner，按架构与锁文件恢复 Gem、Pod、RN 下载缓存。Bundler 按 Runner 的 3 个 CPU 并行安装，沿用各库已提交的 `example/.bundle/config`，不改写参与 Turbo 摘要的配置文件。原生构建输出 Runner 的 CPU、内存和实际耗时，便于比较冷缓存与命中缓存的成本。各库 `turbo.json` 的 `build:ios` 任务需在 `env` 中包含 `XCODE_VERSION`，在 `inputs` 中包含 `$TURBO_ROOT$/.github/workflows/ci.yml`，使工具链与构建配置变化正确失效；同步脚本不覆盖该文件。
 
 保留各库 Podfile 选择的构建模式。Camera 为 Nitro／Video 的头文件兼容性显式使用 RN Core 源码构建，不能统一强制使用预编译包。原有 JS、原生测试、覆盖率和构建架构不变。
 
