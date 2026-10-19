@@ -231,6 +231,33 @@ fi
 
 node "$script_dir/ci-filter-contract.test.mjs"
 node --test "$script_dir/ci-package-scope.test.cjs"
+node --test "$script_dir/../templates/actions/verification/verification.test.cjs"
+
+assert_contains "$changes_job" 'actions: read' '复用判断必须能只读 PR 检查与凭据'
+assert_contains "$changes_job" 'reused: ${{ steps.verification.outputs.reused }}' 'changes 必须输出复用判断'
+assert_contains "$changes_job" "if: steps.verification.outputs.reused != 'true'" '仅已验证的同树结果允许省略重复分类'
+assert_contains "$template" 'node --test .github/actions/verification/verification.test.cjs' '每轮 CI 必须验证复用逻辑'
+assert_contains "$template" '  verified:' 'CI 缺少完整验证汇总门禁'
+assert_contains "$template" 'needs: [changes, actionlint, lint, test, website, build-library, build-android, build-ios]' '汇总门禁必须等待所有原有检查'
+assert_contains "$template" 'CI_CHECK_RESULTS: ${{ toJSON(needs) }}' '汇总门禁必须检查实际结果'
+assert_contains "$template" 'if-no-files-found: error' '凭据缺失必须阻止通过'
+assert_contains "$template" 'name: ci-verification-${{ github.run_attempt }}' '凭据必须隔离每次重跑'
+for file in verification.cjs verification.test.cjs; do
+  assert_contains "$sync_script" "actions/verification/$file" '同步必须下发复用实现和测试'
+done
+
+node - "$script_dir" <<'NODE'
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
+for (const suffix of ['', '-native']) {
+  const ruleset = JSON.parse(readFileSync(join(process.argv[2], `rulesets/protect-main${suffix}.json`)));
+  const checks = ruleset.rules.find(rule => rule.type === 'required_status_checks').parameters.required_status_checks;
+  for (const name of ['actionlint', 'lint', 'test', 'build-library', 'build-android', 'build-ios', 'verified', ...(suffix ? ['lint-cpp', 'lint-kotlin'] : [])]) {
+    assert.ok(checks.some(check => check.context === name), `Required check missing: ${name}`);
+  }
+}
+NODE
 
 [[ -f "$validation_workflow" ]] ||
   fail '共享仓缺少自动执行模板契约的 validate workflow'

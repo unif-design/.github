@@ -11,8 +11,8 @@
 | `.github/workflows/native-lint.yml`(仅 native 仓) | `lint-cpp`(clang-format)+ `lint-kotlin`(ktlint)check,required check |
 | `.github/workflows/nightly-build-check.yml`(仅 native 仓) | RN-next build canary,weekly cron,advisory(非 required)|
 | `.clang-format`(仅 native 仓,仓库根) | clang-format 规则(LLVM/2/120 最小稳定选项),`lint-cpp` + lefthook 读它 |
-| `unif-design/.github/scripts/rulesets/protect-main.json` | 6-check branch ruleset(非 native 仓),`setup-repo.sh` 套用 |
-| `unif-design/.github/scripts/rulesets/protect-main-native.json` | 8-check branch ruleset(native 仓,+`lint-cpp` / `lint-kotlin`),`setup-repo.sh` 自动套用 |
+| `unif-design/.github/scripts/rulesets/protect-main.json` | 7-check branch ruleset(非 native 仓),`setup-repo.sh` 套用 |
+| `unif-design/.github/scripts/rulesets/protect-main-native.json` | 9-check branch ruleset(native 仓,+`lint-cpp` / `lint-kotlin`),`setup-repo.sh` 自动套用 |
 | `.github/actions/setup/action.yml` | composite action,Node + Yarn package cache + 始终 immutable install;由中央模板强制同步 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR template,自动套到所有新 PR |
 | `unif-design/.github/scripts/sync-repo.sh` | 下发标准文件，并主动移除已停用的 Dependabot 配置 / 自动合并 workflow |
