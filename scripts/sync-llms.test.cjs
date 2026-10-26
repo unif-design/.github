@@ -14,6 +14,7 @@ try {
     'react-native-hms-scan',
     'react-native-umeng',
     'react-native-chat',
+    'react-native-icons',
   ]) {
     const target = path.join(workspace, name);
     fs.mkdirSync(target);

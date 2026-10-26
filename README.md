@@ -14,7 +14,7 @@
 
 ## 同步到已有仓库
 
-只更新 Camera、Design、HMS Scan、Umeng、Chat 的 AGENTS 共享入口：
+只更新 Camera、Design、HMS Scan、Umeng、Chat、Icons 的 AGENTS 共享入口：
 
 ```sh
 ./scripts/sync-agent-standards.sh react-native-design ../react-native-design
