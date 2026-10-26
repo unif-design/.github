@@ -7,7 +7,7 @@ sync_script="$script_dir/sync-agent-standards.sh"
 full_sync_script="$script_dir/sync-repo.sh"
 template="$script_dir/../templates/AGENTS.md"
 templates_dir="$script_dir/../templates"
-canonical_template_sha256='7666e458c6bbb1c1249bdc3aab680ac41f2da3e0f4a31795f38f6c93c66b9571'
+canonical_template_sha256='e019d65b250af47806643244b16fd2f757d232c177b77bc5dd1cf9352967d3d9'
 begin_marker='<!-- BEGIN UNIF REACT NATIVE STANDARD -->'
 end_marker='<!-- END UNIF REACT NATIVE STANDARD -->'
 workspace="$(mktemp -d)"
@@ -60,6 +60,7 @@ render_expected_marker() {
 
   sed \
     -e "s/{{REPO}}/$repo/g" \
+    -e "s/{{LIBRARY_SKILL}}/unif-${repo#react-native-}/g" \
     "$template" >"$output"
 }
 
@@ -111,7 +112,7 @@ assert_short_bootstrap_template() {
     fail '短 bootstrap 模板唯一 H2 不是「开发入口」'
 
   step_count="$(awk '/^- / { count++ } END { print count + 0 }' "$template")"
-  [[ "$step_count" -eq 3 ]] || fail "入口模板应包含技能、阶段与项目资料三项"
+  [[ "$step_count" -eq 4 ]] || fail "入口模板应包含能力、开发、阶段与项目资料四项"
   for stage_skill in code-development architecture-design code-testing code-review code-delivery; do
     grep -Fq "$stage_skill" "$template" || fail "缺少阶段技能:$stage_skill"
   done
@@ -160,8 +161,9 @@ bash "$sync_script" react-native-camera "$target"
 assert_managed_marker_exact "$target/AGENTS.md" react-native-camera '首次同步'
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$target/AGENTS.md" || fail '未插入 BEGIN marker'
 grep -Fq "\`react-native-camera\`" "$target/AGENTS.md" || fail '未渲染 react-native-camera 映射'
-grep -Fq "必须使用 \`unif-portal-dev-skills:code-development\`。" "$target/AGENTS.md" || fail '未要求使用新开发技能'
+grep -Fq "unif-portal-dev-skills:code-development" "$target/AGENTS.md" || fail '未要求使用新开发技能'
 grep -Fq 'docs/DEVELOPMENT.md' "$target/AGENTS.md" || fail '缺项目资料入口'
+grep -Fq 'unif-portal-dev-skills:unif-camera' "$target/AGENTS.md" || fail '缺本库能力入口'
 if grep -Eq 'rn-library|unif-design/skills|--global --agent' "$target/AGENTS.md"; then
   fail '仍有旧技能或自动安装指令'
 fi
@@ -306,13 +308,14 @@ if [[ "$before_package_mismatch_hash" != "$after_package_mismatch_hash" ]]; then
   fail '包名不匹配被拒绝前仍写入了 AGENTS.md'
 fi
 
-# 五仓固定映射都必须渲染对应 repo 与新技能入口,并通过 package identity 校验。
+# 六仓固定映射都必须渲染对应 repo 与库能力入口,并通过 package identity 校验。
 for mapping in \
   'react-native-camera:@unif/react-native-camera' \
   'react-native-design:@unif/react-native-design' \
   'react-native-hms-scan:@unif/react-native-hms-scan' \
   'react-native-umeng:@unif/react-native-umeng' \
-  'react-native-chat:@unif/react-native-chat'; do
+  'react-native-chat:@unif/react-native-chat' \
+  'react-native-icons:@unif/react-native-icons'; do
   IFS=':' read -r repo package <<<"$mapping"
   mapping_target="$workspace/$repo"
   mkdir -p "$mapping_target"
@@ -323,6 +326,7 @@ for mapping in \
   assert_managed_marker_exact "$mapping_target/AGENTS.md" "$repo" "$repo"
   grep -Fq "\`$repo\`" "$mapping_target/AGENTS.md" || fail "$repo 未渲染 repo 映射"
   grep -Fq "unif-portal-dev-skills:code-development" "$mapping_target/AGENTS.md" || fail "$repo 未使用新技能"
+  grep -Fq "unif-portal-dev-skills:unif-${repo#react-native-}" "$mapping_target/AGENTS.md" || fail "$repo 缺对应能力入口"
 done
 
 # 目标仓通过全量同步时也必须注入正确共享区块,并保留 marker 外正文。
@@ -360,7 +364,7 @@ done
 assert_managed_marker_exact "$full_target/AGENTS.md" react-native-design '目标仓全量同步'
 grep -Fq '<!-- BEGIN UNIF REACT NATIVE STANDARD -->' "$full_target/AGENTS.md" || fail '目标仓全量同步未插入共享 marker'
 grep -Fq "\`react-native-design\`" "$full_target/AGENTS.md" || fail '目标仓全量同步未渲染 repo 映射'
-grep -Fq "必须使用 \`unif-portal-dev-skills:code-development\`。" "$full_target/AGENTS.md" || fail '目标仓全量同步未使用新技能'
+grep -Fq "unif-portal-dev-skills:code-development" "$full_target/AGENTS.md" || fail '目标仓全量同步未使用新技能'
 grep -Fq '## 本仓规则' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地标题'
 grep -Fq '保留 Design 本地正文。' "$full_target/AGENTS.md" || fail '目标仓全量同步覆盖了本地正文'
 for removed_dependabot_artifact in \

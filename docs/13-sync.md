@@ -17,7 +17,7 @@
 | 脚本 | 管什么 | 怎么实现 |
 |---|---|---|
 | `setup-repo.sh <repo>` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | `gh api` PATCH/PUT,改 GitHub 服务端 |
-| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / lefthook / PR&Issue 模板 / SECURITY;五仓共享 Agent bootstrap;移除已停用的 Dependabot 自动化 | 拷贝 `templates/` + 变量替换 + 明确清理;命中五仓时调用 marker 级 Agent 同步,改目标仓工作树 |
+| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / lefthook / PR&Issue 模板 / SECURITY;六仓共享 Agent bootstrap;移除已停用的 Dependabot 自动化 | 拷贝 `templates/` + 变量替换 + 明确清理;命中六仓时调用 marker 级 Agent 同步,改目标仓工作树 |
 
 两者互补:先 `sync-repo.sh` 把 `ci.yml` 等文件 commit 进 repo + 跑过一次(GitHub 索引 check 名),再 `setup-repo.sh` 配 ruleset(required checks 才挂得上)。
 
@@ -42,7 +42,7 @@ templates/
 ├── pr_agent.toml                  # → .pr_agent.toml 基础版
 ├── SECURITY.md
 ├── PULL_REQUEST_TEMPLATE.md
-├── AGENTS.md                     # camera / design / hms-scan / umeng 五仓共享 Agent bootstrap 唯一真相源
+├── AGENTS.md                     # camera / design / hms-scan / umeng / chat / icons 六仓共享 Agent bootstrap 唯一真相源
 └── ISSUE_TEMPLATE/
     ├── bug_report.yml
     ├── config.yml
@@ -105,7 +105,7 @@ cd /path/to/unif-design/.github
 |---|---|---|
 | **强制覆盖** | `ci.yml` / `.github/actions/setup/action.yml` / `.github/actions/verification/verification{,.test}.cjs` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
 | **主动移除** | `.github/dependabot.yaml` / `.github/workflows/dependabot-auto-merge.yml` / `.github/workflows/dependabot-automerge.yml` | 每次 sync 删除，保证机器人自动 PR 和旧自动合并 workflow 不会复活 |
-| **marker 级覆盖(仅五仓)** | camera / design / hms-scan / umeng / chat 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享 bootstrap | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是五仓共享 Agent bootstrap 唯一真相源,完整标准在 `unif-skill/unif-portal-dev-skills` 的阶段技能,marker 外的仓库特有规则保留;非五仓跳过 |
+| **marker 级覆盖(仅六仓)** | camera / design / hms-scan / umeng / chat / icons 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享 bootstrap | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是六仓共享 Agent bootstrap 唯一真相源,完整标准在 `unif-skill/unif-portal-dev-skills` 的共用研发规范与库能力技能,marker 外的仓库特有规则保留;非六仓跳过 |
 | **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
 | **条件分发(native)** | `native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 仅当目标有手写 native 源码(`HAS_NATIVE_SRC`,见下),即 umeng / hms-scan |
@@ -113,13 +113,13 @@ cd /path/to/unif-design/.github
 
 > 为什么 `.pr_agent.toml` 不强制覆盖:它带各仓特有 review prompt。强制覆盖会抹掉特化，所以模板只是 base，sync 只补缺、不动已有。
 
-> 为什么五仓的 `AGENTS.md` 不整文件强制覆盖:根文件还承载各仓特有规则。`sync-agent-standards.sh` 只刷新共享 bootstrap marker 区块;零 marker 时在 H1 后首次插入,只缺一侧、重复或倒序时拒绝写入,避免误伤本地规则。完整共享标准在 `unif-skill/unif-portal-dev-skills` 的阶段技能。marker 脚本只更新 bootstrap,marker 外正文仍须语义审查。需要只更新五仓 Agent bootstrap 时,可独立运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`;非五仓不应用此共享区块。脚本只改目标工作树,不 commit / 不 push / 不创建 PR。
+> 为什么六仓的 `AGENTS.md` 不整文件强制覆盖:根文件还承载各仓特有规则。`sync-agent-standards.sh` 只刷新共享 bootstrap marker 区块;零 marker 时在 H1 后首次插入,只缺一侧、重复或倒序时拒绝写入,避免误伤本地规则。完整共享标准在 `unif-skill/unif-portal-dev-skills` 的共用研发规范与库能力技能。marker 脚本只更新 bootstrap,marker 外正文仍须语义审查。需要只更新六仓 Agent bootstrap 时,可独立运行 `./scripts/sync-agent-standards.sh <repo-name> [target-repo-path]`;非六仓不应用此共享区块。脚本只改目标工作树,不 commit / 不 push / 不创建 PR。
 
 > **`HAS_NATIVE_SRC` 判据**:`sync-repo.sh` 用 `find` 看库本体的 `android/src` + `ios/` 下有没有手写 `.kt/.kts/.mm/.m/.cpp/.h`(crnl 布局下 example app 的 native 在 `example/` 下,不会误命中)。命中才下发 `native-lint.yml` / `nightly-build-check.yml` / `.clang-format`。判据用源码而非 `*.podspec`:design 纯 JS 但可能有壳 podspec,而 native lint 只对真有 `.kt/.mm` 的仓有意义。`react-native-camera`(vision-camera wrapper,无自有 native)同理不下发。
 
 ## 改了标准之后
 
-改 CI / 发版标准 → 改 `unif-design/.github` 的 `templates/` → 对每个仓跑一遍 `sync-repo.sh <repo>` → review diff → 对五仓另审查 marker 外 `AGENTS.md` 语义 → 各仓 PR。历史 `docs/superpowers/specs/` 与 `docs/superpowers/plans/` 记录当时设计,不回写。**不要直接改某个仓的 `ci.yml`**(下次 sync 会被覆盖,且制造 drift)。
+改 CI / 发版标准 → 改 `unif-design/.github` 的 `templates/` → 对每个仓跑一遍 `sync-repo.sh <repo>` → review diff → 对六仓另审查 marker 外 `AGENTS.md` 语义 → 各仓 PR。历史 `docs/superpowers/specs/` 与 `docs/superpowers/plans/` 记录当时设计,不回写。**不要直接改某个仓的 `ci.yml`**(下次 sync 会被覆盖,且制造 drift)。
 
 `pr-agent.yml` 是 caller,`uses: ...@main` 引用 org reusable workflow —— 改 reusable 逻辑(`.github/.github/workflows/pr-agent.yml`)对所有仓**立即**生效,不需要 sync。
 

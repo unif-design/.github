@@ -11,6 +11,7 @@ const websites = [
   'react-native-hms-scan',
   'react-native-umeng',
   'react-native-chat',
+  'react-native-icons',
 ];
 if (!websites.includes(name))
   throw new Error('Specify a supported library name');

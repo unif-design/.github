@@ -34,8 +34,10 @@ case "$repo_name" in
   react-native-hms-scan) package='@unif/react-native-hms-scan' ;;
   react-native-umeng) package='@unif/react-native-umeng' ;;
   react-native-chat) package='@unif/react-native-chat' ;;
+  react-native-icons) package='@unif/react-native-icons' ;;
   *) exit 2 ;;
 esac
+library_skill="unif-${repo_name#react-native-}"
 
 agents_file="$target_dir/AGENTS.md"
 package_file="$target_dir/package.json"
@@ -75,8 +77,8 @@ trap 'rm -rf "$temp_dir"' EXIT
 rendered="$temp_dir/rendered.md"
 updated="$temp_dir/AGENTS.md"
 
-awk -v repo="$repo_name" \
-  '{ gsub(/\{\{REPO\}\}/, repo); print }' \
+awk -v repo="$repo_name" -v skill="$library_skill" \
+  '{ gsub(/\{\{REPO\}\}/, repo); gsub(/\{\{LIBRARY_SKILL\}\}/, skill); print }' \
   "$template" >"$rendered"
 
 if [[ "$begin_count" -eq 1 ]]; then
