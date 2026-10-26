@@ -123,9 +123,9 @@ dry-run 完别忘了还原,不然下一次 commit 会带上意外的 version bum
 
 ### Release workflow 跑了但没发版
 
-**正常,不是 bug**。原因:最新 commit 是 `chore:` / `docs:` 等非 release-worthy 前缀,release-it 看到"无可发布变更"exit 0。
+先区分工作流已启动、发布 job 被跳过、release-it 已执行和包已发布。检查本仓 `release.yml` 的 job／step 条件、tag 以来是否有新提交、仓库专属发布契约检查及发布日志；Umeng 的发布契约可判定没有需要发布的包变化。
 
-如果**应该发版但没发**:确认 commit 前缀是不是 `feat:` / `fix:` / 含 `BREAKING CHANGE:`。是的话看 release-it 日志,可能是 conventional-changelog plugin 解析出了问题。
+当前 `angular` preset 对 `test:`／`chore:`／`docs:` 仍可建议 patch，不能仅凭前缀解释未发版。若已授权发布且资格检查通过，再按[发版机制](04-release.md)手动 dispatch；完成后核对 npm、tag、main 和文档版本。
 
 ---
 

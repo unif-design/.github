@@ -26,8 +26,8 @@
   - 子选项 **Allowed merge methods** 也只勾 **Squash**(其他取消)—— 强制 main 只能接受 squash merge,双重保险(repo Settings 那层即便被改也拦得住)
 - ✅ **Require status checks to pass**:
   - ✅ Require branches to be up to date
-  - Required checks 加这 7 个:`actionlint`、`lint`、`test`、`build-library`、`build-android`、`build-ios`、`verified`
-  - **native 仓**(umeng / hms-scan,有 `native-lint.yml`)再多 `lint-cpp`、`lint-kotlin` 两个 = 共 9 个(见下方「两份 ruleset」)
+  - 基础 checks 为 `actionlint`、`lint`、`test`、`build-library`、`build-android`、`build-ios`。本仓同步并注册 `verified` 后再加入它；原有 required checks 保留。
+  - 采用 `native-lint.yml` 并注册相应作业的仓库再加入 `lint-cpp`、`lint-kotlin`（见下方「两份 ruleset」）。
   - **不加 `pr_agent`**(AI review 是参考性,不该 gate merge)
 - ✅ **Block force pushes**
 
@@ -43,10 +43,10 @@
 
 | 文件 | required checks | 适用 |
 |---|---|---|
-| `protect-main.json` | 7 个(`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios` / `verified`)| 非 native 仓(design 纯 JS / camera 无自有 native)|
-| `protect-main-native.json` | 9 个(上面 7 个 + `lint-cpp` + `lint-kotlin`)| native 仓(umeng / hms-scan,有手写 `.kt/.mm`)|
+| `protect-main.json` | 7 个(`actionlint` / `lint` / `test` / `build-library` / `build-android` / `build-ios` / `verified`)| 已注册完整标准 CI、未采用 `native-lint.yml` 的仓库 |
+| `protect-main-native.json` | 9 个(上面 7 个 + `lint-cpp` + `lint-kotlin`)| 已注册完整标准 CI 和 `native-lint.yml` 的仓库 |
 
-判据自洽:`setup-repo.sh` 检测 repo 里有没有 `.github/workflows/native-lint.yml` —— 有它 ⟺ 有那两个 check ⟺ 套 9-check 版,否则 7-check 版(`native-lint.yml` 由 `sync-repo.sh` 仅下发给 native 仓)。
+`setup-repo.sh` 根据 `.github/workflows/native-lint.yml` 是否存在选择上述模板；它不是当前所有仓库的启用状态清单。运行前先按 [CI 启用步骤](03-ci.md#main-复用已通过的-pr)同步、执行并确认作业名称已注册，再更新 ruleset。不要给尚无 `verified` 作业的仓库直接套用 7／9-check 模板。
 
 ### 发版 bot 进 bypass
 
@@ -79,7 +79,7 @@ App 的建/装/凭据存放、workflow 里怎么用,见 [发版机制 → push �
 | **Automatically delete head branches** | ✅ | merge 后远端 branch 自动删,repo 永远干净 |
 | **Always suggest updating PR branches** | 偏好 | 提示落后的 PR rebase main(配合 ruleset 的 "branches up to date" 用)|
 
-注意:**Auto-delete head branches 只删远端**,本地 stale branch 要自己清理,见[本地 branch 清理](#本地-branch-清理)。
+注意:**Auto-delete head branches 只删远端**,本地 stale branch 要自己清理,见[本地 branch 清理](10-emergency.md)。
 
 ---
 
