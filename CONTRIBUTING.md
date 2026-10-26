@@ -29,10 +29,12 @@ commit message 必须符合 [Conventional Commits](https://www.conventionalcommi
 |---|---|---|
 | `feat` | 新功能 | bump **minor** |
 | `fix` | Bug 修复 | bump **patch** |
-| `refactor` / `chore` / `docs` / `test` / `style` / `perf` / `ci` | 维护类 | **不发版** |
+| `refactor` / `chore` / `docs` / `test` / `style` / `perf` / `ci` | 维护类 | 当前 Angular preset 仍可推断 **patch**；是否执行发布取决于工作流路径和仓库发布检查 |
 | body 含 `BREAKING CHANGE:` | 破坏性变更 | bump **major** |
 
 约束:
+
+- 提交类型不决定工作流是否启动。先核对本仓 `release.yml` 的触发路径与专属检查，再按[发版机制](docs/04-release.md)判断版本；major 必须另获用户明确授权。
 
 - subject 全小写,不含大写英文专有名词(commitlint `subject-case` 规则)
 - subject 不要句号结尾

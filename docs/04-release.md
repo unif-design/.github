@@ -6,13 +6,23 @@
 
 ### 触发(`release.yml`)
 
+触发路径以各仓当前 `release.yml` 为准。共享模板只提供接入默认值，不能代替已经采用的仓库专属发布契约。当前维护范围如下：
+
+| 仓库 | 自动触发路径 | 后续检查 |
+|---|---|---|
+| Design、Chat、Icons、Camera | `src/**`、`scripts/**` | Release 验证与版本推断 |
+| HMS Scan | `src/**`、`ios/**`、`android/**`、`*.podspec` | Release 验证与版本推断 |
+| Umeng | `package.json`、`src/**`、`scripts/**`、`ios/**`、`android/**`、`*.podspec`、`babel.config.js`、`tsconfig.build.json`、`tsconfig.json` | 发布契约检查可能判定无需发布；路径命中不等于发布成功 |
+
+普通文档或 example 改动没有命中路径时，按本次发布授权手动 dispatch。下面是共享模板的 JS 库默认值：
+
 ```yaml
 on:
   push:
     branches: [main]
-    paths:                       # sync 按 native/JS 注入;native 仓为 src/ios/android/podspec
+    paths:                       # 仅表示模板默认值；已有仓库核对自己的配置
       - 'src/**'
-      - 'scripts/**'             # 故意不含 package.json/yarn.lock —— website workspace 登记 + 依赖升级会连带改它们,不该触发发版(走手动 dispatch)
+      - 'scripts/**'
   workflow_dispatch:
     inputs:
       increment:
@@ -35,10 +45,12 @@ on:
 有 BREAKING CHANGE  → bump major
 有 feat:            → bump minor
 有 fix:             → bump patch
-只有 chore: / docs: / 等   → 不发版,release-it exit 0
+只有 test: / chore: / docs: / 等 → 当前 angular preset 仍建议 patch
 ```
 
-`workflow_dispatch` 时选了 `patch` / `minor` / `major` 就**强制**该类型、跳过自动推断;保持默认 `auto` 则走自动推断(release.yml 里 `INCREMENT != auto` 才把它传给 release-it)。
+提交类型、路径触发和发布资格是三件事。当前 `angular` preset 默认建议 patch，不能把维护类前缀当作“绝不发版”的保证。没有 tag 以来的新提交时由 `git.requireCommits` 拦截；Umeng 等仓库还会执行自己的发布契约检查。
+
+`workflow_dispatch` 显式选择版本级别时按该级别发布；`auto` 使用自动推断。用户常规发版授权只覆盖 minor／patch，major 必须另获明确授权；不能把调用 dispatch 的技术能力当作大版本授权。
 
 ### 两套凭据,各管一段
 
@@ -127,7 +139,8 @@ on:
 8. **Release** —— `npx release-it [increment] --ci`,`GITHUB_TOKEN` env 喂 App token
    - bump `package.json` version
    - 生成 changelog,写入 `CHANGELOG.md`(根据 `@release-it/conventional-changelog.infile`),前置追加新版本段
-   - git commit `chore: release X.Y.Z [skip ci]`(含 package.json + CHANGELOG.md)
+   - 跟踪网站生成产物的仓库执行 `after:bump`，按新版本生成 LLM 索引与 Markdown
+   - git commit `chore: release X.Y.Z [skip ci]`(含 package.json、CHANGELOG.md 和已跟踪的文档生成产物)
    - git tag `vX.Y.Z`
    - `npm publish`(走 OIDC trusted publishing)
    - git push commit + tag(走 **App token**)
@@ -137,11 +150,14 @@ on:
 
 ```jsonc
 {
+  "hooks": {
+    "after:bump": "node website/scripts/build-llms.js"
+  },
   "git": {
     // [skip ci] 防自触发死循环(见下节);release commit 本身不该再触发 release.yml
     "commitMessage": "chore: release ${version} [skip ci]",
     "tagName": "v${version}",
-    "requireCommits": true   // 无新 conventional commit 时干净 exit 0,不报红叉
+    "requireCommits": true   // 自上次 tag 无新提交时拒绝重复发布
   },
   "npm": {
     "publish": true,
@@ -159,7 +175,9 @@ on:
 }
 ```
 
-`requireCommits: true` —— 自上次 tag 以来没有任何 conventional commit 时,release-it 直接 **exit 0** 干净跳过,而不是抛错。否则手动触发 / paths 误命中却无可发内容时会留个红叉,污染 Actions 历史。
+`requireCommits: true` 检查自上次 tag 以来是否有新提交，不按 `feat`／`fix` 过滤。当前默认 `requireCommitsFail: true`，无新提交会报错；以实际日志判断，不能把绿色工作流或无新增 tag 推断成发布成功。
+
+上述 `hooks` 适用于跟踪网站生成产物的 Design、Icons：此时 package 版本已提升，随后 Git 阶段将已跟踪的 `website/static/llms.txt`、`llms-full.txt` 和 Markdown 产物纳入同一次发布提交；生成失败应中止发布。Chat、Camera、HMS Scan、Umeng 忽略这些产物，在本地与部署时生成，不配置该发布钩子，也不把本地缓存当作已提交文件。正式发布后核对 main、tag、npm 和线上索引；跟踪生成产物的仓库还须核对发布提交内的版本标记。
 
 ### 防自触发死循环
 
@@ -167,7 +185,7 @@ on:
 
 **根因**:release-it 推回 main 的 `chore: release` commit 改了 `package.json`,正好命中 `release.yml` 的 `paths:`(含 `package.json`)→ 再次触发 `release.yml` → 再发一版 → 再 push → …… **无限发版**(react-native-design 实测刷出了 `0.4.0`~`0.4.33` 几十个空版本)。
 
-> **2026-06 更新**:`package.json`/`yarn.lock` 已从 `release.yml` 的 `paths` 移除(它们会被 website workspace 登记 + 依赖升级连带改动,不该触发发版),`chore: release` commit 不再命中 paths → **这个根因已从源头堵死**。下面三道防线仍保留作冗余兜底(尤其手动 dispatch / src 改动场景)。
+> **2026-06 的处理**：当时从模板的触发路径移除了 `package.json`／`yarn.lock`。目前 Umeng 的发布契约需要监听 `package.json`，不能再声称所有仓库都不命中发布提交；下面的 `[skip ci]`、job 条件和并发约束仍须保留，并核对本仓专属检查。
 
 **关键反直觉点**:在用 App token 修好 push 之前,这个循环**一直没发生** —— 因为 release commit 的 push 被 ruleset 拦住了(根本推不上去)。是 App token 让 CI 能写回受保护分支,**反而打开了死循环的闸门**。所以:
 

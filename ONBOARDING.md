@@ -21,7 +21,7 @@ cd /path/to/unif-design/.github
 
 脚本从 `templates/` 拷贝 `ci.yml` / `release.yml` / lefthook / PR&Issue 模板等,做变量替换(repo 名 / npm 包名 / Pages URL),按 native/JS + 有无 website 条件分发;同时主动移除已停用的 Dependabot 配置和自动合并 workflow。**不 commit / 不 push** —— review `git diff` 后自己 commit + 开 PR(详见 [13-sync](docs/13-sync.md))。
 
-新 repo 必须先有 `.github/workflows/ci.yml`,且 **commit 进 repo + 至少跑过一次**(成功或失败都行,GitHub 需要索引 check 名字),否则下一步 ruleset 的 required status checks 配置会失败。**native 仓**(umeng / hms-scan,有手写 `.kt/.mm`)除 `ci.yml` 外还要 `native-lint.yml` 也 commit 进 repo + 至少跑过一次(GitHub 要先索引 `lint-cpp` / `lint-kotlin` 这俩 check),否则下一步 8-check ruleset 配置会失败。
+先提交并执行 `.github/workflows/ci.yml`，确认包括 `verified` 在内的标准检查已注册，再配置下一步 ruleset。采用 `native-lint.yml` 时也需先注册 `lint-cpp`／`lint-kotlin`。旧仓升级按 [CI 启用步骤](docs/03-ci.md#main-复用已通过的-pr)分阶段完成，不能给尚无相应作业的仓库直接加入新 required check。
 
 ### 2. 跑 setup-repo.sh(GitHub 端配置)
 
@@ -41,7 +41,7 @@ cd /path/to/unif-design/.github
 |---|---|
 | Merge methods | 只允许 Squash merge |
 | Auto-delete head branches | merge 后自动删源 branch |
-| Branch Ruleset "protect main" | 必须 PR + 6 个 required checks(含 actionlint;native 仓为 8 个,多 `lint-cpp` / `lint-kotlin`)+ 禁 force push + Squash only + release-bot bypass。脚本检测到 `native-lint.yml` 自动套 8-check 版 ruleset |
+| Branch Ruleset "protect main" | 必须 PR + 完整标准 CI 的 7 个 required checks（含 actionlint、verified；采用 Native Lint 时为 9 个）+ 禁 force push + Squash only + release-bot bypass。运行前须已注册对应作业 |
 | Secret scanning + Push protection | enable |
 | Private vulnerability reporting | enable(配合 SECURITY.md)|
 | Dependabot security updates | ⊘ **disable**(只保留 alerts,不自动创建修复 PR)|
@@ -57,7 +57,7 @@ step 1 的 `sync-repo.sh` 已经把这些文件落到工作树(无需再手动�
 
 | 文件 | 由 sync 下发 | 说明 |
 |---|---|---|
-| `.github/workflows/ci.yml` | 强制覆盖 | 四仓最优并集 |
+| `.github/workflows/ci.yml` | 强制覆盖 | 共享 CI 标准，采用范围及专属检查须核对 |
 | `.github/workflows/release.yml` | 强制覆盖 | paths 按 native/JS 注入;npm 包必需 |
 | `.github/workflows/pr-title.yml` / `pr-agent.yml` | 强制覆盖 | |
 | `.github/workflows/deploy-docs.yml` | 条件分发 | 仅有 `website/` 的仓 |
@@ -97,7 +97,7 @@ npmjs.com → 你的包 → Settings → Publishing access → Trusted Publisher
 
 ## 改 ruleset / org 端配置
 
-修 `scripts/rulesets/protect-main.json` → 跑 `setup-repo.sh` 重新 PATCH 同名 ruleset(脚本幂等),所有已接入 repo 重跑一遍即可同步。
+修 `scripts/rulesets/protect-main.json` 后，逐仓确认 workflow 和检查名称已经接入，再运行 `setup-repo.sh` 更新同名 ruleset；不能在检查注册前批量套用新模板。
 
 ## 重跑 setup-repo.sh 安全吗
 

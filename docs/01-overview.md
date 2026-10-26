@@ -23,7 +23,7 @@
        ▼
    GitHub UI 开 PR(PR template 自动套)
        │
-       │ CI 自动跑 7 个 check(native 仓 9 个,多 lint-cpp/lint-kotlin)
+       │ CI 执行本仓已接入的适用检查，核对远端 required checks
        ▼
    ┌─────────────────┐
    │ Branch protection│  阻止直接 push main

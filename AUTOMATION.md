@@ -19,7 +19,7 @@
 
 | # | 章节 | 一句话 |
 |---|---|---|
-| 3 | [CI workflow](docs/03-ci.md) | `changes` 门控 + 7 个 required job(actionlint / verified / lint / test / build×3;native 仓另加 native-lint 的 lint-cpp / lint-kotlin = 9)+ nightly RN-next canary + pin SHA + 缓存策略 |
+| 3 | [CI workflow](docs/03-ci.md) | 变更门控、标准作业、PR 验证复用与分阶段启用；required checks 按本仓已注册作业和远端规则核对 |
 | 4 | [发版机制](docs/04-release.md) | `release.yml` + release-it + 两套凭据(OIDC publish + App token push)+ 防发版死循环 |
 | 5 | [Branch protection (Rulesets)](docs/05-branch-protection.md) | Ruleset 4 项 + 发版 App 进 bypass + Repo Settings 配套勾选项 |
 | 6 | [依赖管理（人工升级）](docs/06-dependencies.md) | 禁止机器人自动 PR / 人工升级 SOP / major 升级 case-by-case |
@@ -34,7 +34,7 @@
 | 10 | [应急流程](docs/10-emergency.md) | 手动触发发版 / 手动升级依赖 / 回滚 / 本地 branch 清理 |
 | 11 | [排查常见报错](docs/11-troubleshooting.md) | 真实踩过的坑 + 修法(release-it / 发版死循环 / YAML 冒号 / commitlint / yarn.lock / CodeQL polyglot ...)|
 | 12 | [配置文件清单 + 不要做的事](docs/12-reference.md) | 所有配置文件路径速查 + 11 条 don't-list |
-| 13 | [一键同步 workflow 模板](docs/13-sync.md) | `templates/` 标准源 + `scripts/sync-repo.sh` 下发(`ci.yml` 四仓最优并集 / 变量替换 / 覆盖 vs 保留特化;Agent bootstrap 的完整标准在 `rn-library` Skill)|
+| 13 | [一键同步 workflow 模板](docs/13-sync.md) | `templates/` 标准源、变量替换与特化保留；六库 Agent bootstrap 指向 `unif-portal-dev-skills` 的共用研发规范与库能力技能 |
 
 ## 新 repo 接入
 
@@ -45,7 +45,7 @@
 - **改流程标准** → 改对应 `docs/XX-*.md`
 - **新增 / 删除章节** → 改本索引页 + 调整 docs/ 文件编号
 - **每个 docs 文件有 nav header / footer**,跨章节跳转方便
-- 四仓 `templates/AGENTS.md` 是共享 Agent bootstrap 唯一真相源,完整标准由 `unif-design/skills` 的 `rn-library` Skill 管理;同步只更新 marker 内 bootstrap,marker 外仍须语义审查,且不 commit / push / PR。
+- 六库 `templates/AGENTS.md` 是共享 Agent bootstrap 唯一真相源，完整标准由 [unif-portal-dev-skills](https://github.com/unif-skill/unif-portal-dev-skills) 的共用研发规范与库能力技能维护；同步只更新 marker 内 bootstrap，marker 外仍须语义审查，且不 commit / push / PR。
 - 历史 `docs/superpowers/specs/` 与 `docs/superpowers/plans/` 记录当时设计,不回写。
 
 读者从 README / CONTRIBUTING / CLAUDE.md 跳到本索引,按需进入子文档,不会一次面对 800+ 行单文件。

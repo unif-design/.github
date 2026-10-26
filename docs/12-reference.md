@@ -49,7 +49,7 @@
 - ❌ **用个人 PAT 替发版 bot push main** —— long-lived、绑个人、owner 离职即挂。用 org GitHub App 现场签发的短期 token(见 [发版机制](./04-release.md#push-回受保护-main--用-github-app-token))
 - ❌ **在 `run:` 里直接 `${{ steps... }}` / `${{ github... }}` 插值** —— 先落 `env:` 再用 `$VAR`,杜绝 shell 注入(GitHub 安全最佳实践)
 - ❌ **只修"让 CI 写回 main"却不加防循环** —— 一旦 release commit 能 push 上去,就会命中 `release.yml` 的 paths 触发自己,无限发版。push 能力和 `[skip ci]` + job `if` + `concurrency` 三道防线必须同时上(见 [防自触发死循环](./04-release.md#防自触发死循环))
-- ❌ **`uses:` 写浮动 tag(`@v5` / `@main`)** —— tag 可被移到恶意 commit。pin 到 40 位 commit SHA + `# vX.Y.Z` 注释，升级时人工核对上游 release 与完整 SHA(见 [pin SHA](./03-ci.md#第三方-action-一律-pin-到-commit-sha))
+- ❌ **第三方 `uses:` 写浮动 tag(`@v5` / `@main`)** —— tag 可被移动。第三方 action pin 到 40 位 commit SHA + `# vX.Y.Z` 注释，升级时核对上游 release 与完整 SHA；组织自有 reusable workflow 沿用明确的跨仓引用契约(见 [CI 维护与验证](./03-ci.md#维护与验证))。
 - ❌ **workflow 表达式 / `if` 含 `: ` 不套引号** —— YAML 把冒号当 mapping 分隔符,解析失败 workflow 静默不注册。整个 `${{ }}` 套 YAML 双引号,并靠 actionlint 兜底
 - ❌ **没有看 changelog 就批量升级依赖** —— 同一批升级会放大回归定位难度；人工按兼容关系拆分 PR，并跑完整门禁
 - ❌ **把 `pr_agent` 加进 ruleset 的 required status checks** —— AI review 是参考性,DeepSeek API 临时挂或 review 慢会卡死合并
