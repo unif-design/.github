@@ -138,13 +138,15 @@ on:
 7. Configure git —— git user 设为 App bot(`unif-release-bot[bot]`)
 8. **Release** —— `npx release-it [increment] --ci`,`GITHUB_TOKEN` env 喂 App token
    - bump `package.json` version
-   - 生成 changelog,写入 `CHANGELOG.md`(根据 `@release-it/conventional-changelog.infile`),前置追加新版本段
    - 跟踪网站生成产物的仓库执行 `after:bump`，按新版本生成 LLM 索引与 Markdown
+   - `beforeRelease` 阶段将 changelog 写入 `CHANGELOG.md`(根据 `@release-it/conventional-changelog.infile`)，前置追加新版本段
+   - `npm publish`(走 OIDC trusted publishing)
    - git commit `chore: release X.Y.Z [skip ci]`(含 package.json、CHANGELOG.md 和已跟踪的文档生成产物)
    - git tag `vX.Y.Z`
-   - `npm publish`(走 OIDC trusted publishing)
    - git push commit + tag(走 **App token**)
    - 创建 GitHub Release(走 **App token**)
+
+当前 release-it 先发布 npm 包，再创建并推送版本提交。因此 npm 元数据的 `gitHead` 可指向版本提交之前的修订；验收同时核对包版本、完整性摘要、实际发布内容与 tag／main，不能仅凭 `gitHead` 与发布 tag 的提交号不同判定包内容不一致。
 
 ### `release-it` 配置(`package.json#release-it`)
 

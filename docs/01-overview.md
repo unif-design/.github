@@ -41,12 +41,13 @@
    │   0. 签发 App token(push main 用)    │
    │   1. 跑 lint + typecheck + test       │
    │   2. release-it --ci                  │
-   │      └ 推断 bump 类型                 │
+   │      └ 推断版本并 bump               │
+   │      └ 按本仓配置生成发布产物         │
+   │      └ 写 CHANGELOG                  │
    │      └ npm publish(OIDC,无 token)   │
-   │      └ git commit + tag(App token)   │
+   │      └ git commit + tag + push       │
    │         commit 带 [skip ci] 防自触发  │
    │      └ 创建 GitHub Release            │
-   │      └ 写 CHANGELOG.md                │
    └──────────────────────────────────────┘
             │
             ▼
