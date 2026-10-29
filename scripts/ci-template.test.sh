@@ -140,6 +140,7 @@ awk '
 
 for required_path in \
   "AGENTS.md" \
+  "docs/**" \
   "website/**" \
   "src/**" \
   "package.json" \

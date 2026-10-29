@@ -42,12 +42,18 @@
 set -euo pipefail
 
 # ── 参数 ──────────────────────────────────────────────────────────────
+CHECK_ONLY=false
+if [[ "${1:-}" == --check ]]; then
+  CHECK_ONLY=true
+  shift
+fi
+DIFFERENCES=0
 REPO="${1:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/templates"
 
 if [[ -z "$REPO" ]]; then
-  echo "用法: $0 <repo-name> [target-repo-path]"
+  echo "用法: $0 [--check] <repo-name> [target-repo-path]"
   echo "  例: $0 react-native-design"
   exit 1
 fi
@@ -68,7 +74,7 @@ fi
 # NPM_PKG:优先从目标 package.json 的 "name" 字段读真实包名
 NPM_PKG=""
 if [[ -f "$TARGET/package.json" ]]; then
-  NPM_PKG="$(node -e "try{process.stdout.write(require('$TARGET/package.json').name||'')}catch(e){}" 2>/dev/null || true)"
+  NPM_PKG="$(node -e 'try{process.stdout.write(require(process.argv[1]).name||"")}catch(e){}' "$TARGET/package.json" 2>/dev/null || true)"
 fi
 if [[ -z "$NPM_PKG" ]]; then
   NPM_PKG="@unif/$REPO"
@@ -100,6 +106,9 @@ echo "  native src : $HAS_NATIVE_SRC (有 .kt/.mm → 下发 native-lint + .clan
 echo "  website    : $HAS_WEBSITE"
 echo ""
 
+RENDER_DIR="$(mktemp -d)"
+trap 'rm -rf "$RENDER_DIR"' EXIT
+
 # ── 工具函数 ──────────────────────────────────────────────────────────
 # 变量替换:stdin → stdout
 subst() {
@@ -110,12 +119,28 @@ subst() {
 
 # 强制写(替换变量后覆盖目标)
 # render <template-rel-path> <target-rel-path>
-render() {
-  local src="$TEMPLATES_DIR/$1"
+write_rendered() {
+  local src="$1"
   local dst="$TARGET/$2"
+  if $CHECK_ONLY; then
+    if [[ ! -f "$dst" ]] || ! cmp -s "$src" "$dst"; then
+      echo "  ✗ $2(缺失或偏离组织模板)"
+      DIFFERENCES=$((DIFFERENCES + 1))
+    fi
+    return
+  fi
+  if [[ -L "$dst" ]]; then
+    echo "拒绝覆盖符号链接: $2" >&2
+    exit 1
+  fi
   mkdir -p "$(dirname "$dst")"
-  subst < "$src" > "$dst"
+  cat "$src" > "$dst"
   echo "  ✓ $2"
+}
+
+render() {
+  subst < "$TEMPLATES_DIR/$1" > "$RENDER_DIR/rendered"
+  write_rendered "$RENDER_DIR/rendered" "$2"
 }
 
 # 仅当目标不存在时写(保留 repo 特化)
@@ -134,6 +159,11 @@ render_if_absent() {
 prune_stale() {
   local dst="$TARGET/$1"
   if [[ -e "$dst" ]]; then
+    if $CHECK_ONLY; then
+      echo "  ✗ $1(已停用，需移除)"
+      DIFFERENCES=$((DIFFERENCES + 1))
+      return
+    fi
     if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1 && \
        git -C "$TARGET" ls-files --error-unmatch "$1" >/dev/null 2>&1; then
       git -C "$TARGET" rm -q "$1"   # git 跟踪的走 git rm(记成 rename)
@@ -159,6 +189,7 @@ render actions/changes/action.yml            .github/actions/changes/action.yml
 render actions/changes/classify-package.cjs    .github/actions/changes/classify-package.cjs
 render actions/verification/verification.cjs   .github/actions/verification/verification.cjs
 render actions/verification/verification.test.cjs .github/actions/verification/verification.test.cjs
+render scripts/check-library.cjs             .github/scripts/check-library.cjs
 render workflows/pr-title.yml                 .github/workflows/pr-title.yml
 render workflows/pr-agent.yml                 .github/workflows/pr-agent.yml
 render lefthook.yml                           lefthook.yml
@@ -169,24 +200,29 @@ echo ""
 
 # ── 1b. 共享 Agent bootstrap(marker 级覆盖,保留仓库规则)──────────────
 echo "→ [1b] 同步共享 Agent bootstrap(marker 级覆盖)"
-case "$REPO" in
-  react-native-camera|react-native-design|react-native-hms-scan|react-native-umeng|react-native-chat|react-native-icons)
+if [[ "$REPO" =~ ^react-native-[a-z0-9-]+$ ]]; then
+  if $CHECK_ONLY; then
+    if ! "$SCRIPT_DIR/sync-agent-standards.sh" --check "$REPO" "$TARGET"; then
+      DIFFERENCES=$((DIFFERENCES + 1))
+    fi
+    if $HAS_WEBSITE && ! node "$SCRIPT_DIR/sync-llms.cjs" --check "$REPO" "$TARGET"; then
+      DIFFERENCES=$((DIFFERENCES + 1))
+    fi
+  else
     "$SCRIPT_DIR/sync-agent-standards.sh" "$REPO" "$TARGET"
-    node "$SCRIPT_DIR/sync-llms.cjs" "$REPO" "$TARGET"
-    echo "  ✓ AGENTS.md 共享 bootstrap(保留仓库特有规则)"
-    ;;
-  *)
-    echo "  ⊘ 非共享 Agent 标准目标仓,跳过 AGENTS.md"
-    ;;
-esac
+    if $HAS_WEBSITE; then node "$SCRIPT_DIR/sync-llms.cjs" "$REPO" "$TARGET"; fi
+    echo "  ✓ AGENTS.md 共享入口(保留仓库特有规则)"
+  fi
+else
+  echo "  ⊘ 非共享 Agent 标准目标仓,跳过 AGENTS.md"
+fi
 echo ""
 
 # ── 2. release.yml(按 native/JS 决定 paths)────────────────────────
 echo "→ [2] release.yml(按 native/JS 注入 paths)"
 # 把多行 paths 写进临时文件,再让 awk 命中 {{RELEASE_PATHS}} 时 cat 进来
 # —— 不经 awk -v 传多行串(BSD awk 会报 "newline in string")。
-PATHS_TMP="$(mktemp)"
-trap 'rm -f "$PATHS_TMP"' EXIT
+PATHS_TMP="$RENDER_DIR/release-paths"
 if $HAS_PODSPEC; then
   printf "%s\n" \
     "      - 'src/**'" \
@@ -198,7 +234,6 @@ else
     "      - 'src/**'" \
     "      - 'scripts/**'" > "$PATHS_TMP"
 fi
-mkdir -p "$TARGET/.github/workflows"
 subst < "$TEMPLATES_DIR/workflows/release.yml" \
   | awk -v pf="$PATHS_TMP" '
       # 只替换首个 {{RELEASE_PATHS}} 标记行(防 header 注释里再次出现导致重复注入)
@@ -209,8 +244,8 @@ subst < "$TEMPLATES_DIR/workflows/release.yml" \
         next
       }
       { print }
-    ' > "$TARGET/.github/workflows/release.yml"
-echo "  ✓ .github/workflows/release.yml ($([ "$HAS_PODSPEC" = true ] && echo native || echo JS-only) paths)"
+    ' > "$RENDER_DIR/release.yml"
+write_rendered "$RENDER_DIR/release.yml" .github/workflows/release.yml
 echo ""
 
 # ── 3. deploy-docs.yml(仅有 website 的仓)────────────────────────────
@@ -242,7 +277,7 @@ render_if_absent pr_agent.toml                     .pr_agent.toml
 render_if_absent ISSUE_TEMPLATE/feature_request.yml .github/ISSUE_TEMPLATE/feature_request.yml
 echo ""
 
-# ── 4b. 校验 package.json 的 workflow 依赖配置(sync 不改 package.json,只报警)──
+# ── 4b. 校验 workflow 依赖；缺失时非零退出，不修改 package.json ──
 # workflow 文件同步过去了,但它运行时依赖 package.json 里的配置 —— 那些是各仓特化、sync 故意不碰:
 #   ci.yml / nightly 的 `yarn turbo run build:*`      → devDep turbo
 #   release.yml 的 `npx release-it`(npm OIDC publish) → release-it 配置 + npm.skipChecks + conventional-changelog plugin
@@ -250,7 +285,7 @@ echo ""
 # 这里在 sync 时提前校验 + 报警,免得等 CI 一个个挂才发现。
 echo "→ [4b] 校验 package.json 的 workflow 依赖配置"
 if [[ -f "$TARGET/package.json" ]]; then
-  node -e '
+  if ! node -e '
     const p = require(process.argv[1]);
     const dd = p.devDependencies || {};
     const ri = p["release-it"];
@@ -259,13 +294,29 @@ if [[ -f "$TARGET/package.json" ]]; then
     if (!ri) w.push("缺 release-it 配置 —— release.yml 用默认,npm OIDC 被 whoami 预检查挡(Not authenticated)");
     else if (!(ri.npm && ri.npm.skipChecks === true)) w.push("release-it.npm.skipChecks 未开 —— npm Trusted Publishing(OIDC)会被 whoami 预检查挡");
     if (!dd["@release-it/conventional-changelog"]) w.push("缺 devDep @release-it/conventional-changelog —— release-it 算 changelog 的 plugin");
-    if (w.length) { console.log("  ⚠ package.json 缺 workflow 依赖配置(sync 不改 package.json,需手动补齐):"); w.forEach(x => console.log("    ✗ " + x)); }
+    if (w.length) { console.error("  ✗ package.json 缺 workflow 依赖配置:"); w.forEach(x => console.error("    ✗ " + x)); process.exitCode = 1; }
     else console.log("  ✓ turbo / release-it(skipChecks)/ conventional-changelog 齐全");
-  ' "$TARGET/package.json" || echo "  ⚠ package.json 解析失败,跳过校验"
+  ' "$TARGET/package.json"; then
+    DIFFERENCES=$((DIFFERENCES + 1))
+  fi
 else
-  echo "  ⊘ 目标无 package.json,跳过"
+  echo "  ✗ 目标缺少 package.json"
+  DIFFERENCES=$((DIFFERENCES + 1))
 fi
 echo ""
+
+if $CHECK_ONLY; then
+  if [[ "$DIFFERENCES" -gt 0 ]]; then
+    echo "模板核验失败：$DIFFERENCES 项差异；未修改目标仓库。"
+    exit 1
+  fi
+  echo "模板与工作流依赖配置一致；未修改目标仓库。"
+  exit 0
+fi
+if [[ "$DIFFERENCES" -gt 0 ]]; then
+  echo "文件已同步，但接入配置仍有缺项，不能报告接入完成。"
+  exit 1
+fi
 
 # ── 5. 报告 diff(不 commit 不 push)─────────────────────────────────
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

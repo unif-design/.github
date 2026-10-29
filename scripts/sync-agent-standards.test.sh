@@ -7,7 +7,8 @@ sync_script="$script_dir/sync-agent-standards.sh"
 full_sync_script="$script_dir/sync-repo.sh"
 template="$script_dir/../templates/AGENTS.md"
 templates_dir="$script_dir/../templates"
-canonical_template_sha256='e019d65b250af47806643244b16fd2f757d232c177b77bc5dd1cf9352967d3d9'
+# 新库使用公开文档入口，已有六库保持专属技能映射。
+canonical_template_sha256='5bc734617587b3bdaab9b23b72212fca326d2906056d833b3118aa91d40c682c'
 begin_marker='<!-- BEGIN UNIF REACT NATIVE STANDARD -->'
 end_marker='<!-- END UNIF REACT NATIVE STANDARD -->'
 workspace="$(mktemp -d)"
@@ -57,10 +58,11 @@ file_mode() {
 render_expected_marker() {
   local repo="$1"
   local output="$2"
+  local entry='本库能力的使用、维护和排障使用 `unif-portal-dev-skills:unif-'"${repo#react-native-}"'`，只读取当前任务相关资料。'
 
   sed \
     -e "s/{{REPO}}/$repo/g" \
-    -e "s/{{LIBRARY_SKILL}}/unif-${repo#react-native-}/g" \
+    -e "s|{{LIBRARY_SKILL_ENTRY}}|$entry|g" \
     "$template" >"$output"
 }
 
@@ -339,7 +341,7 @@ cat >"$full_target/AGENTS.md" <<'EOF'
 EOF
 
 cat >"$full_target/package.json" <<'EOF'
-{"name":"@unif/react-native-design"}
+{"name": "@unif/react-native-design", "devDependencies": {"turbo": "1", "@release-it/conventional-changelog": "1"}, "release-it": {"npm": {"publish": true, "skipChecks": true}}}
 EOF
 
 mkdir -p "$full_target/.github/workflows"
@@ -386,7 +388,7 @@ cat >"$other_target/AGENTS.md" <<'EOF'
 EOF
 
 cat >"$other_target/package.json" <<'EOF'
-{"name":"example-repo"}
+{"name": "example-repo", "devDependencies": {"turbo": "1", "@release-it/conventional-changelog": "1"}, "release-it": {"npm": {"publish": true, "skipChecks": true}}}
 EOF
 
 if ! bash "$full_sync_script" example-repo "$other_target" >"$other_output"; then

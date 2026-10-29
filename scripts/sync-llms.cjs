@@ -5,16 +5,8 @@ const path = require('node:path');
 const args = process.argv.slice(2);
 const check = args.includes('--check');
 const [name, targetArgument] = args.filter((value) => value !== '--check');
-const websites = [
-  'react-native-design',
-  'react-native-camera',
-  'react-native-hms-scan',
-  'react-native-umeng',
-  'react-native-chat',
-  'react-native-icons',
-];
-if (!websites.includes(name))
-  throw new Error('Specify a supported library name');
+if (!/^react-native-[a-z0-9-]+$/.test(name || ''))
+  throw new Error('Specify a React Native library repository name');
 const target = path.resolve(
   targetArgument || path.join(__dirname, '..', '..', name)
 );

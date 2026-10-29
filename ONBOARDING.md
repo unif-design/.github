@@ -1,6 +1,6 @@
 # 新 repo 接入 unif-design 标准
 
-接入流程从手配 ~30 分钟降到 ~10 分钟。
+本流程区分开发接入、公开交付和远端发布，文件同步完成不能替代后续验收。
 
 ## 前置条件
 
@@ -8,7 +8,7 @@
 - `unif-design/.github` 仓库已 clone 到本地(因为脚本需要 `scripts/rulesets/*.json`)
 - 目标 repo 已经 `gh repo create unif-design/<repo> --public`
 
-## 接入步骤(~10 分钟)
+## 接入步骤
 
 ### 1. 下发标准 workflow + 配置文件(sync-repo.sh)
 
@@ -20,6 +20,14 @@ cd /path/to/unif-design/.github
 ```
 
 脚本从 `templates/` 拷贝 `ci.yml` / `release.yml` / lefthook / PR&Issue 模板等,做变量替换(repo 名 / npm 包名 / Pages URL),按 native/JS + 有无 website 条件分发;同时主动移除已停用的 Dependabot 配置和自动合并 workflow。**不 commit / 不 push** —— review `git diff` 后自己 commit + 开 PR(详见 [13-sync](docs/13-sync.md))。
+
+先执行只读接入检查，发现模板偏离或工作流依赖缺失时修复后再提交：
+
+```sh
+./scripts/check-repo.sh <repo-name>
+```
+
+`source` 检查允许尚未公开发布的候选包。未授权建站或发布的开发任务不因此扩大范围；公开交付另须通过下面的发行前置。
 
 ### 2. 提交同步文件并运行 CI
 
@@ -84,12 +92,30 @@ npmjs.com → 你的包 → Settings → Publishing access → Trusted Publisher
   Workflow filename: release.yml
 ```
 
+真正首次包先按[首次 npm 引导](docs/04-release.md#首次-npm-引导)建立包身份，再配置发布绑定；不要把 registry 404 当作可以复用旧版本的证明。已有 App、组织 Secrets 和发布绑定按实际状态复用。
+
 详见 [AUTOMATION.md](AUTOMATION.md) 发版机制段。
 
 ### 5. Topics(可选,提升发现性)
 
 `repo Settings → About 齿轮 → Topics`:加 3-7 个标签,如:
 - `react-native` / `typescript` / `design-system` / `ui-library` / `mobile`
+
+## 公开交付前置
+
+```sh
+./scripts/check-repo.sh --release <repo-name>
+# 在库根目录构建后核对真正打包的文件：
+node .github/scripts/check-library.cjs pack
+```
+
+公开库必须解除 `private`、明确分发许可、配置 npm 发布和正式文档站。README 至少包含用途与支持范围、安装与 peer 依赖、最小用法、公开 API、示例、网站、npm 和许可证入口；接口语义、示例真实性及许可选择仍需人工审查，不能只靠标题和链接判定内容完成。
+
+文档站采用真实 website workspace，构建须执行共享 LLM 生成器，具备类型检查与测试入口；根目录 docs 作为网站来源时，同步覆盖 CI 与部署触发路径。新 RN 库自动采用通用研发入口；只有已存在专项技能的库才引用对应能力技能，不编造技能名称。
+
+采用新模板后，必需的 `actionlint` 作业从组织 main 只读核对模板与静态接入；`build-library` 检查真实 tarball 的公开出口。组织模板升级后出现偏离，须核对并同步对应变更，不能单仓绕过检查。尚未同步新模板的旧库不自动宣称已通过新门禁。
+
+Release 取得发布 App token 前检查公开发行前置，发布后核对新版本、registry 元数据和实际下载产物；没有新版本、发布跳过或 registry 核验失败都会失败。文档触发失败也会报告；部署成功后再检查网站与 llms 地址，npm 与网站分别验收。
 
 ## 接入后核对清单
 
@@ -100,7 +126,9 @@ npmjs.com → 你的包 → Settings → Publishing access → Trusted Publisher
 | Squash merge 是唯一选项 | PR 页面 merge 按钮下拉只有 "Squash and merge" |
 | PR Agent 自动 review | 开 PR 后 ~3 分钟有 DeepSeek 评论 |
 | Pages 站点可访问 | `https://unif-design.github.io/<repo>/`(若启用)|
-| README badges 等等 | 各 repo 自己 README 维护 |
+| 模板和发行前置 | `check-repo.sh --release <repo-name>` 与 `setup-repo.sh <repo-name> --check` |
+| npm 实际可用 | `node .github/scripts/check-library.cjs published`，核对本次版本与 tarball |
+| README 与 API | 按公开交付要求审查真实用法和所有公开入口 |
 
 ## 改 ruleset / org 端配置
 
