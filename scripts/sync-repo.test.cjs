@@ -110,3 +110,46 @@ if (args.some(arg => arg.endsWith('/llms.txt'))) fs.appendFileSync(process.env.C
     assert.equal(fs.readFileSync(log, 'utf8').trim().split('\n').length, requests);
   }
 });
+
+test('publication verification can recover without repeating the release job', t => {
+  const root = fixture(t);
+  const result = sync(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8');
+  const publish = workflow.slice(workflow.indexOf('  release:'), workflow.indexOf('  verify-publication:'));
+  const verify = workflow.slice(workflow.indexOf('  verify-publication:'));
+  assert.match(workflow, /verify_only:\n[\s\S]*?default: false\n\s+type: boolean/);
+  assert.match(publish, /!inputs\.verify_only/);
+  assert.match(publish, /npx release-it/);
+  assert.doesNotMatch(publish, /check-library\.cjs published/);
+  assert.match(verify, /needs: release/);
+  assert.match(verify, /needs\.release\.result == 'success'/);
+  assert.match(verify, /workflow_dispatch[\s\S]*?inputs\.verify_only/);
+  assert.match(verify, /ref: \$\{\{ needs\.release\.outputs\.revision \|\| github\.sha \}\}/);
+  assert.match(verify, /test -n "\$PUBLISHED_REVISION" && test -n "\$PUBLISHED_VERSION"/);
+  assert.match(verify, /check-library\.cjs published/);
+  assert.match(verify, /gh workflow run deploy-docs\.yml --ref main/);
+  assert.doesNotMatch(verify, /npx release-it|npm publish|id-token:|app-token/);
+  lintWorkflows(root);
+});
+
+test('publication verification checks the emitted version before reading npm', t => {
+  const root = fixture(t);
+  const source = fs.readFileSync(path.join(scripts, '../templates/workflows/release.yml'), 'utf8');
+  const start = source.indexOf('      - name: Verify actual npm publication');
+  const scriptStart = source.indexOf('        run: |\n', start) + '        run: |\n'.length;
+  const script = source.slice(scriptStart).split('\n')
+    .slice(0, 4).map(line => line.replace(/^          /, '')).join('\n');
+  fs.mkdirSync(path.join(root, '.github/scripts'), { recursive: true });
+  const marker = path.join(root, 'npm-checked');
+  fs.writeFileSync(path.join(root, '.github/scripts/check-library.cjs'),
+    "require('node:fs').writeFileSync('npm-checked', 'yes');\n");
+  for (const [expected, status] of [['0.1.1', 1], ['0.1.0', 0], ['', 0]]) {
+    fs.rmSync(marker, { force: true });
+    const result = spawnSync('bash', ['-e', '-c', script], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, EXPECTED_VERSION: expected },
+    });
+    assert.equal(result.status, status, result.stdout + result.stderr);
+    assert.equal(fs.existsSync(marker), status === 0);
+  }
+});

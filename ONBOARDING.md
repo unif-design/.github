@@ -115,7 +115,7 @@ node .github/scripts/check-library.cjs pack
 
 采用新模板后，必需的 `actionlint` 作业从组织 main 只读核对模板与静态接入；`build-library` 检查真实 tarball 的公开出口。组织模板升级后出现偏离，须核对并同步对应变更，不能单仓绕过检查。尚未同步新模板的旧库不自动宣称已通过新门禁。
 
-Release 取得发布 App token 前检查公开发行前置，发布后核对新版本、registry 元数据和实际下载产物；没有新版本、发布跳过或 registry 核验失败都会失败。文档触发失败也会报告；部署成功后再检查网站与 llms 地址，npm 与网站分别验收。
+Release 取得发布 App token 前检查公开发行前置，发布后由独立作业核对新版本、registry 元数据和实际下载产物；没有新版本、发布跳过或 registry 核验失败都会失败。文档触发失败也会报告；部署成功后再检查网站与 llms 地址，npm 与网站分别验收。若版本已经发布但验收失败，使用 [仅恢复发行验收](docs/04-release.md#仅恢复发行验收)，不重复发版。
 
 ## 接入后核对清单
 
