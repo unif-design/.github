@@ -16,10 +16,12 @@
 
 | 脚本 | 管什么 | 怎么实现 |
 |---|---|---|
-| `setup-repo.sh <repo>` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | `gh api` PATCH/PUT,改 GitHub 服务端 |
+| `setup-repo.sh <repo> [--check]` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | 默认只补齐差异并回读；`--check` 只读核验 |
 | `sync-repo.sh <repo>` | **repo 内文件** —— workflow / lefthook / PR&Issue 模板 / SECURITY;六仓共享 Agent bootstrap;移除已停用的 Dependabot 自动化 | 拷贝 `templates/` + 变量替换 + 明确清理;命中六仓时调用 marker 级 Agent 同步,改目标仓工作树 |
 
 两者互补:先 `sync-repo.sh` 把 `ci.yml` 等文件 commit 进 repo + 跑过一次(GitHub 索引 check 名),再 `setup-repo.sh` 配 ruleset(required checks 才挂得上)。
+
+远端基础设置从 `templates/repository-settings.json` 读取，主分支规则沿用 `scripts/rulesets/`。同步脚本只提示核验命令，不擅自修改远端；初始化验收必须包含 `setup-repo.sh <repo> --check`，不能仅凭 workflow 文件存在认定 main 已受保护。
 
 ## 标准模板在哪
 

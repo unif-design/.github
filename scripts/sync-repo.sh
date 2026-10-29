@@ -269,7 +269,7 @@ echo ""
 
 # ── 5. 报告 diff(不 commit 不 push)─────────────────────────────────
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ 同步完成(未 commit / 未 push)。改动:"
+echo "✅ 仓库文件同步完成(未 commit / 未 push；未核验 GitHub 远端设置)。改动:"
 echo ""
 if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
   git -C "$TARGET" status --short
@@ -280,3 +280,6 @@ else
 fi
 echo ""
 echo "下一步:在 $TARGET 里 review 改动,自己 commit + 开 PR。"
+
+echo "CI 检查注册后，核验远端模板: $SCRIPT_DIR/setup-repo.sh $REPO --check"
+echo "仅在已获远端配置授权时补齐差异: $SCRIPT_DIR/setup-repo.sh $REPO"
