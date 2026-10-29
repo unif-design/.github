@@ -35,6 +35,7 @@
 | 11 | [排查常见报错](docs/11-troubleshooting.md) | 真实踩过的坑 + 修法(release-it / 发版死循环 / YAML 冒号 / commitlint / yarn.lock / CodeQL polyglot ...)|
 | 12 | [配置文件清单 + 不要做的事](docs/12-reference.md) | 所有配置文件路径速查 + 11 条 don't-list |
 | 13 | [一键同步 workflow 模板](docs/13-sync.md) | `templates/` 标准源、变量替换与特化保留；六库 Agent bootstrap 指向 `unif-portal-dev-skills` 的共用研发规范与库能力技能 |
+| 14 | [库提取与等价迁移](docs/14-library-extraction.md) | 已有行为、原生 SDK 与补丁归属、实际产物及消费者验收 |
 
 ## 新 repo 接入
 
