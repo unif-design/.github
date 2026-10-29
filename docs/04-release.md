@@ -61,7 +61,7 @@ on:
 | `npm publish` | **OIDC / Trusted Publishing**(`id-token: write`)| 无 long-lived token,npm 现场签发临时凭据 + provenance |
 | `git push` release commit + tag 回 main | **GitHub App 临时 token** | main 受 ruleset 保护,默认 `GITHUB_TOKEN` 进不了 bypass(下节详述)|
 
-两者职责不重叠:App token 只管 git push 那一段,`npm publish` 始终走 OIDC,不要混。
+两者职责不重叠:App token 只管 git push 那一段,正式版本的 `npm publish` 走 OIDC；首次包身份引导按下节处理，不复用 App token 作为 npm 凭据。
 
 ### Trusted Publishing(OIDC,npm publish 用)
 
@@ -72,6 +72,48 @@ on:
 | **不要**配 NPM_TOKEN secret | 走 OIDC 完全没有 long-lived token |
 | `package.json#release-it.npm.skipChecks: true` | **必须** —— 跳过 `npm whoami` 预检查(OIDC 没持久登录)|
 | `npm install -g "npm@^11"` step | **必须** —— OIDC 要求 npm CLI ≥ 11.5.1。**别写 `npm@latest`**:npm 的 engines 下限会先于 `.nvmrc` 钉的 node 往前跳,一跳就全组织发版同时断(2026-07-14 实测 npm@12 要 node ≥ 24.15,runner 是 24.13 → EBADENGINE)|
+
+### 首次 npm 引导
+
+仅用于已明确公开分发、包身份与历史已经核实、且尚不能配置 OIDC 的真正首次包。已有版本或历史标签必须保留；registry 404、查询失败和空列表不等于从未发布。
+
+npm 已支持使用维护者登录会话通过 `npm stage publish` 创建新包，再配置 Trusted Publisher。它会公开 `0.0.0-stage` 占位包，真正候选进入待审队列；这不是正式版本发布成功，也不是 OIDC 验收。依据见 [npm 官方说明](https://docs.npmjs.com/staged-publishing/)及[首次包支持公告](https://github.blog/changelog/2026-10-02-npm-staged-publishing-now-supports-creating-new-packages/)。
+
+1. 完成源码、许可证、测试和真实 tarball 审查，确认维护者具有组织发布权限。
+2. 准备与下一正式版本不同的预发布引导候选；使用同一份已审核代码，并记录候选版本与摘要。待审版本占用版本号，不能暂存下一正式版本后又让 release-it 重发同版。
+3. 使用已有 npm 登录会话暂存该候选，回读包身份与待审记录：
+
+   ```sh
+   npm stage publish <已审核候选.tgz> --access public --tag bootstrap --registry=https://registry.npmjs.org
+   npm stage list <包名> --registry=https://registry.npmjs.org
+   ```
+
+4. 维护者完成 npm 的 2FA 并绑定本仓 `release.yml`，然后回读绑定；复用现有 GitHub App 与组织凭据，不创建临时 NPM_TOKEN：
+
+   ```sh
+   npm trust github <包名> --repository unif-design/<仓库名> --file release.yml --allow-publish --registry=https://registry.npmjs.org
+   npm trust list <包名> --registry=https://registry.npmjs.org
+   ```
+
+5. 条件齐备后按授权合并或 dispatch，让正式新版本走既有 OIDC Release。核对 registry、下载产物、main 与标签，并验证文档部署。
+6. 正式版本可用后，由维护者完成 2FA 拒绝剩余引导候选并回读队列；不把占位包或待审版本当作交付物，不删除正式版本来清理候选。
+
+新绑定须在 npm 规定的有效期内完成第一次成功发布，当前为两天。身份、2FA、发布绑定或候选处置无法核实时，保留已完成产物，明确剩余条件；不得通过试发、覆盖标签或无依据地复用版本探测权限。
+
+### 公开交付检查
+
+共享脚本 `.github/scripts/check-library.cjs` 由组织 `templates/scripts/` 下发：
+
+| 模式 | 检查范围 |
+|---|---|
+| `source` | 开发接入元数据、公开入口结构与存在的 website 接线；允许 private 候选 |
+| `release` | 公开分发许可、非 private、npm/OIDC 配置、README 与正式文档站前置 |
+| `pack` | 真正生成 tarball，核对包身份、main/types 和每个条件／通配 exports 目标 |
+| `published` | 本次版本的官方 registry 元数据、下载产物身份、出口与完整性 |
+
+Release 在申请发布 App token 前执行 `release`，验证后执行 `pack`。正式发布后必须产生新版本且通过 `published`，否则返回失败；脚本不执行 publish，不以 GitHub Release 存在推断 npm 成功。共享 Release 设置 `NPM_CONFIG_ACCESS=public`，各库可显式配置相同的 publishConfig.access，不能使用 restricted。
+
+文档 dispatch 失败不再吞掉；它与 Deploy Docs 的构建、实际部署和公网地址核验分别报告。没有触发站点部署或站点验证失败时，不能称文档交付完成。
 
 ### push 回受保护 main —— 用 GitHub App token
 

@@ -16,8 +16,9 @@
 
 | 脚本 | 管什么 | 怎么实现 |
 |---|---|---|
+| `check-repo.sh [--release] <repo> [path]` | **接入验收**：只读比较受管模板，并检查开发或公开发行前置 | 调用同步检查和共享 Node 校验器，不改目标仓或远端 |
 | `setup-repo.sh <repo> [--check]` | **GitHub 端配置** —— merge methods / branch ruleset / secret scanning / 关闭 CodeQL / Pages | 默认只补齐差异并回读；`--check` 只读核验 |
-| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / lefthook / PR&Issue 模板 / SECURITY;六仓共享 Agent bootstrap;移除已停用的 Dependabot 自动化 | 拷贝 `templates/` + 变量替换 + 明确清理;命中六仓时调用 marker 级 Agent 同步,改目标仓工作树 |
+| `sync-repo.sh <repo>` | **repo 内文件** —— workflow / lefthook / PR&Issue 模板 / SECURITY;RN 库共享 Agent bootstrap;移除已停用的 Dependabot 自动化 | 拷贝 `templates/` + 变量替换 + 明确清理;对 RN 库调用 marker 级 Agent 同步,改目标仓工作树 |
 
 两者互补:先 `sync-repo.sh` 把 `ci.yml` 等文件 commit 进 repo + 跑过一次(GitHub 索引 check 名),再 `setup-repo.sh` 配 ruleset(required checks 才挂得上)。
 
@@ -44,7 +45,7 @@ templates/
 ├── pr_agent.toml                  # → .pr_agent.toml 基础版
 ├── SECURITY.md
 ├── PULL_REQUEST_TEMPLATE.md
-├── AGENTS.md                     # camera / design / hms-scan / umeng / chat / icons 六仓共享 Agent bootstrap 唯一真相源
+├── AGENTS.md                     # camera / design / hms-scan / umeng / chat / icons RN 库共享 Agent bootstrap 唯一真相源
 └── ISSUE_TEMPLATE/
     ├── bug_report.yml
     ├── config.yml
@@ -77,7 +78,7 @@ iOS 使用现有标准 `macos-26` Runner，按架构与锁文件恢复 Gem、Pod
 
 ```sh
 cd /path/to/unif-design/.github
-./scripts/sync-repo.sh <repo-name> [target-repo-path]
+./scripts/sync-repo.sh [--check] <repo-name> [target-repo-path]
 ```
 
 - `<repo-name>`:repo 名(如 `react-native-design`),用于 `{{REPO}}` / URL 替换
@@ -89,7 +90,11 @@ cd /path/to/unif-design/.github
 ./scripts/sync-repo.sh react-native-hms-scan
 ```
 
-脚本**只改目标仓工作树,不 commit / 不 push** —— 跑完报告 `git status` + `git diff --stat`,改动留给你 review,各仓自己开 PR。全量 `sync-repo.sh` 为 `react-native-camera` / `react-native-design` / `react-native-hms-scan` / `react-native-umeng` / `react-native-chat` / `react-native-icons` 调用 `sync-agent-standards.sh`，其他仓明确跳过；后者也不 commit / 不 push。六库同时同步 LLM 文档公共生成实现，维护源为 `templates/llms/`；只同步该实现可运行 `node scripts/sync-llms.cjs <repo-name> [target-repo-path]`，加 `--check` 只检查是否偏离模板。跟踪生成产物的网站库还需采用[版本提升后生成钩子](04-release.md)，忽略生成产物的仓库沿用本地及部署生成；同步脚本不修改各仓 package.json。
+应用模式只修改目标工作树，不提交或推送；缺少 workflow 依赖时退出非零。`--check` 模式不改工作树或 Git 索引，报告缺失、偏离模板及应移除的受管文件。`check-repo.sh` 在此基础上检查包元数据与实际接线，`--release` 追加公开交付要求。
+
+所有包身份匹配的 `react-native-*` 新仓均可同步通用 AGENTS 入口，已有六库保留专项技能入口，没有专项技能的库引用自身公开资料。有 website 时同步 `templates/llms/`，Chat 保留真实专属生成入口；只同步 LLM 实现可运行 `node scripts/sync-llms.cjs <repo-name> [path]`，加 `--check` 只读比较。
+
+跟踪生成产物的网站库继续采用[版本提升后生成钩子](04-release.md)，忽略产物的仓库沿用构建时生成。同步不修改各仓 package.json，也不替调用方选择许可证、创建 npm 绑定或批准首次候选。
 
 ## 变量替换
 
@@ -107,7 +112,7 @@ cd /path/to/unif-design/.github
 |---|---|---|
 | **强制覆盖** | `ci.yml` / `.github/actions/setup/action.yml` / `.github/actions/verification/verification{,.test}.cjs` / `release.yml` / `pr-title.yml` / `pr-agent.yml` / `lefthook.yml` / `SECURITY.md` / `ISSUE_TEMPLATE/{bug_report,config}.yml` | 每次 sync 覆盖(统一标准,不允许单仓 drift) |
 | **主动移除** | `.github/dependabot.yaml` / `.github/workflows/dependabot-auto-merge.yml` / `.github/workflows/dependabot-automerge.yml` | 每次 sync 删除，保证机器人自动 PR 和旧自动合并 workflow 不会复活 |
-| **marker 级覆盖(仅六仓)** | camera / design / hms-scan / umeng / chat / icons 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享 bootstrap | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是六仓共享 Agent bootstrap 唯一真相源,完整标准在 `unif-skill/unif-portal-dev-skills` 的共用研发规范与库能力技能,marker 外的仓库特有规则保留;非六仓跳过 |
+| **marker 级覆盖(仅六仓)** | camera / design / hms-scan / umeng / chat / icons 根 `AGENTS.md` 的 `BEGIN/END UNIF REACT NATIVE STANDARD` 共享 bootstrap | 每次 sync 仅替换 marker 间内容;`templates/AGENTS.md` 是RN 库共享 Agent bootstrap 唯一真相源,完整标准在 `unif-skill/unif-portal-dev-skills` 的共用研发规范与库能力技能,marker 外的仓库特有规则保留;非六仓跳过 |
 | **仅缺时创建** | `PULL_REQUEST_TEMPLATE.md` / `.pr_agent.toml` / `ISSUE_TEMPLATE/feature_request.yml` | 目标已存在则跳过(保留各仓 repo 特化:PR 模板的各仓 checklist 如 umeng 微信分享项 / camera 的 vision-camera 分组 / umeng 的 TurboModule review 规则 等) |
 | **条件分发** | `deploy-docs.yml` | 仅当目标有 `website/` 目录 |
 | **条件分发(native)** | `native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 按目标原生源码的 `HAS_NATIVE_SRC` 检测结果分发；不按固定仓库名单推断 |

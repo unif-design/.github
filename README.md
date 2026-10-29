@@ -9,6 +9,7 @@
 | 接入新仓库              | [接入指南](ONBOARDING.md)              |
 | 查看 CI、发布和分支规则 | [自动化标准](AUTOMATION.md)            |
 | 核对及补齐远端设置      | [远端配置模板](templates/repository-settings.json)、[主分支规则](scripts/rulesets/) |
+| 核对新库接入与发行前置 | [接入验收](ONBOARDING.md#公开交付前置)，使用 `scripts/check-repo.sh` |
 | 更新共享文件            | [同步说明](docs/13-sync.md)            |
 | 接入 PR 自动审查        | [PR Review](docs/08-pr-review.md)      |
 | 排查流水线问题          | [故障排查](docs/11-troubleshooting.md) |
@@ -34,7 +35,7 @@
 ./scripts/setup-repo.sh react-native-design
 ```
 
-`--check` 只读，应用模式只修改差异并回读确认。已有共用 App、Secrets 和 npm 发布绑定不由脚本重配，详情见接入指南。
+`setup-repo.sh --check` 只读核验远端；`check-repo.sh` 核对工作树接入，`--release` 检查公开交付前置。远端应用模式只修改差异并回读确认。已有共用 App、Secrets 和 npm 发布绑定不由脚本重配，详情见接入指南。
 
 只同步 LLM 文档生成实现（保留各库专属检查）：
 

@@ -21,6 +21,7 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'docs/**'
       - 'example/src/**'
       - '!example/src/__tests__/**'
       - '!example/src/**/__tests__/**'
@@ -50,6 +51,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      package_label: ${{ steps.package.outputs.label }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -58,6 +61,10 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+
+      - name: Record documentation package
+        id: package
+        run: printf 'label=%s\n' "$(node -p "const p = require('./package.json'); p.name + '@' + p.version")" >> "$GITHUB_OUTPUT"
 
       - name: Build website
         run: yarn workspace {{NPM_PKG}}-website build
@@ -80,3 +87,21 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+
+      - name: Verify public documentation
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_PACKAGE: ${{ needs.build.outputs.package_label }}
+        run: |
+          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 --retry 5 --retry-all-errors --retry-delay 3 "$PAGE_URL" --output /dev/null
+          index_file="$(mktemp)"
+          trap 'rm -f "$index_file"' EXIT
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/llms.txt" --output "$index_file" && grep -Fq -- "\`$EXPECTED_PACKAGE\`" "$index_file"; then
+              echo "文档已可访问，版本对应 $EXPECTED_PACKAGE"
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then sleep 5; fi
+          done
+          echo "::error::线上文档未对应本次构建版本 $EXPECTED_PACKAGE"
+          exit 1

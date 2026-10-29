@@ -34,6 +34,7 @@ jobs:
           bash scripts/setup-repo.test.sh
           bash scripts/sync-agent-standards.test.sh
           node scripts/sync-llms.test.cjs
+          node --test scripts/check-library.test.cjs
         shell: bash
 
       - name: Validate workflows
@@ -44,4 +45,5 @@ jobs:
             .github/workflows/pr-agent.yml \
             .github/workflows/validate.yml \
             templates/workflows/ci.yml
+          ACTIONLINT="$PWD/actionlint" node --test scripts/sync-repo.test.cjs
         shell: bash
