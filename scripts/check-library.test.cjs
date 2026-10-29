@@ -209,12 +209,16 @@ function publication(t, f, requestedSpec = `${packageName}@0.1.0`) {
     name: packageName, version: '0.1.0', gitHead: 'a'.repeat(40),
     dist: { tarball: `${registry}@unif/react-native-fixture/-/react-native-fixture-0.1.0.tgz`, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` },
   };
+  const calls = { fetch: 0, npm: 0 };
   const options = {
+    wait: async () => assert.fail('valid metadata and contract errors must not wait'),
     fetch: async url => {
+      calls.fetch += 1;
       assert.equal(url, `${registry}${encodeURIComponent(packageName)}/0.1.0`);
       return new Response(JSON.stringify(metadata), { status: 200 });
     },
     npm: (args, execution) => {
+      calls.npm += 1;
       assert.equal(args[0], 'pack');
       assert.equal(args[1], requestedSpec);
       assert.ok(args.includes('--ignore-scripts'));
@@ -225,27 +229,41 @@ function publication(t, f, requestedSpec = `${packageName}@0.1.0`) {
       return JSON.stringify([packed]);
     },
   };
-  return { metadata, options, archive };
+  return { metadata, options, archive, calls };
 }
 test('published verifies the exact registry version and downloaded tarball independently of gitHead', async t => {
   const f = fixture(t);
   const p = publication(t, f);
   assert.equal((await checker()('published', f.root, p.options)).version, '0.1.0');
+  assert.deepEqual(p.calls, { fetch: 1, npm: 1 });
 });
-for (const [label, response, pattern] of [
-  ['registry 404', () => new Response('{}', { status: 404 }), /404/],
-  ['registry server failure', () => new Response('{}', { status: 503 }), /503/],
-  ['network failure', () => { throw new Error('offline'); }, /registry|network/i],
-  ['invalid registry JSON', () => new Response('invalid', { status: 200 }), /registry|JSON/i],
-  ['wrong version', () => new Response(JSON.stringify({ name: packageName, version: '0.0.9' })), /version/],
-  ['wrong package', () => new Response(JSON.stringify({ name: '@unif/react-native-other', version: '0.1.0' })), /name|identity/],
+for (const [label, response, pattern, attempts] of [
+  ['registry 404', () => new Response('{}', { status: 404 }), /404/, 6],
+  ['registry 408', () => new Response('{}', { status: 408 }), /408/, 6],
+  ['registry 429', () => new Response('{}', { status: 429 }), /429/, 6],
+  ['registry server failure', () => new Response('{}', { status: 503 }), /503/, 6],
+  ['network failure', () => { throw new Error('offline'); }, /registry|network/i, 6],
+  ['request timeout', () => { throw new DOMException('timed out', 'TimeoutError'); }, /registry|network/i, 6],
+  ['registry 400', () => new Response('{}', { status: 400 }), /400/, 1],
+  ['registry 401', () => new Response('{}', { status: 401 }), /401/, 1],
+  ['registry 403', () => new Response('{}', { status: 403 }), /403/, 1],
+  ['invalid registry JSON', () => new Response('invalid', { status: 200 }), /registry|JSON/i, 1],
+  ['wrong version', () => new Response(JSON.stringify({ name: packageName, version: '0.0.9' })), /version/, 1],
+  ['wrong package', () => new Response(JSON.stringify({ name: '@unif/react-native-other', version: '0.1.0' })), /name|identity/, 1],
+  ['external tarball URL', () => new Response(JSON.stringify({ name: packageName, version: '0.1.0', dist: { tarball: 'https://example.com/package.tgz', integrity: 'sha512-invalid' } })), /official npm registry/, 1],
+  ['missing digest', () => new Response(JSON.stringify({ name: packageName, version: '0.1.0', dist: { tarball: `${registry}package.tgz` } })), /integrity digest/, 1],
 ]) {
   test(`published fails on ${label} instead of accepting existing tags`, async t => {
     const f = fixture(t);
+    let requests = 0;
+    const waits = [];
     await assert.rejects(() => checker()('published', f.root, {
-      fetch: async () => response(),
+      fetch: async () => { requests += 1; return response(); },
+      wait: async milliseconds => { waits.push(milliseconds); },
       npm: () => assert.fail('invalid registry evidence must not download a package'),
     }), pattern);
+    assert.equal(requests, attempts);
+    assert.deepEqual(waits, Array(attempts - 1).fill(5000));
   });
 }
 test('published rejects an archive with different package metadata', async t => {
@@ -264,6 +282,7 @@ test('published rejects tampered integrity and missing distributed exports', asy
   await assert.rejects(() => checker()('published', f.root, p.options), /hidden.js/);
   p.metadata.dist.integrity = `sha512-${Buffer.alloc(64).toString('base64')}`;
   await assert.rejects(() => checker()('published', f.root, p.options), /integrity/);
+  assert.deepEqual(p.calls, { fetch: 2, npm: 2 });
 });
 test('CLI defaults to cwd, fails invalid checks, and importing the module does not run it', t => {
   const f = fixture(t);
@@ -304,11 +323,22 @@ test('source rejects a semantic version with a leading-zero numeric prerelease',
 
 test('published exits nonzero from the CLI for registry 404', t => {
   const f = fixture(t);
-  write(f.root, 'registry-preload.cjs', 'globalThis.fetch = async () => new Response("{}", { status: 404 });\n');
+  const counts = path.join(f.root, 'registry-counts.json');
+  write(f.root, 'registry-preload.cjs', `
+    let requests = 0;
+    let waits = 0;
+    require('node:timers/promises').setTimeout = async milliseconds => {
+      require('node:assert/strict').equal(milliseconds, 5000);
+      waits += 1;
+    };
+    globalThis.fetch = async () => { requests += 1; return new Response('{}', { status: 404 }); };
+    process.on('exit', () => require('node:fs').writeFileSync(${JSON.stringify(counts)}, JSON.stringify({ requests, waits })));
+  `);
   const run = spawnSync(process.execPath, ['--require', path.join(f.root, 'registry-preload.cjs'), checkerPath, 'published', f.root], { encoding: 'utf8' });
   assert.notEqual(run.status, 0);
   assert.match(run.stderr, /404/);
   assert.doesNotMatch(run.stdout, /PASS/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(counts, 'utf8')), { requests: 6, waits: 5 });
 });
 
 test('pack rejects an npm output path that escapes its temporary directory', async t => {
@@ -353,5 +383,31 @@ for (const mode of ['pack', 'published']) {
     remote.save();
     const p = publication(t, remote, mode === 'pack' ? fs.realpathSync(f.root) : `${packageName}@0.1.0`);
     await assert.rejects(() => checker()(mode, f.root, p.options), /exports.*contract/);
+  });
+}
+
+for (const [label, firstResponse] of [
+  ['HTTP 404', () => new Response('{}', { status: 404 })],
+  ['network failure', () => { throw new TypeError('connection reset'); }],
+  ['request timeout', () => { throw new DOMException('timed out', 'TimeoutError'); }],
+  ['response body interruption', () => new Response(new ReadableStream({
+    start(controller) { controller.error(new TypeError('connection closed')); },
+  }))],
+]) {
+  test(`published recovers from initial ${label} then validates one downloaded tarball`, async t => {
+    const f = fixture(t);
+    const p = publication(t, f);
+    const readMetadata = p.options.fetch;
+    let requests = 0;
+    const waits = [];
+    p.options.fetch = async (...args) => {
+      requests += 1;
+      return requests === 1 ? firstResponse() : readMetadata(...args);
+    };
+    p.options.wait = async milliseconds => { waits.push(milliseconds); };
+    assert.equal((await checker()('published', f.root, p.options)).version, '0.1.0');
+    assert.equal(requests, 2);
+    assert.deepEqual(waits, [5000]);
+    assert.equal(p.calls.npm, 1);
   });
 }

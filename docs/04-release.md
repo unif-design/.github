@@ -111,7 +111,19 @@ npm 已支持使用维护者登录会话通过 `npm stage publish` 创建新包�
 | `pack` | 真正生成 tarball，核对包身份、main/types 和每个条件／通配 exports 目标 |
 | `published` | 本次版本的官方 registry 元数据、下载产物身份、出口与完整性 |
 
-Release 在申请发布 App token 前执行 `release`，验证后执行 `pack`。正式发布后必须产生新版本且通过 `published`，否则返回失败；脚本不执行 publish，不以 GitHub Release 存在推断 npm 成功。共享 Release 设置 `NPM_CONFIG_ACCESS=public`，各库可显式配置相同的 publishConfig.access，不能使用 restricted。
+Release 在申请发布 App token 前执行 `release`，验证后执行 `pack`。发布作业记录版本提交，独立验收作业检出该提交并执行 `published`；必须产生新版本且通过实际产物检查才算完成。共享 Release 设置 `NPM_CONFIG_ACCESS=public`，各库可显式配置相同的 publishConfig.access，不能使用 restricted。
+
+registry 的 404、408、429、5xx 和网络／超时错误最多读取六次，重试间隔五秒，首次成功不等待。认证错误、无效 JSON、包身份或版本不符、下载地址及完整性问题立即失败，不能以重试替代正确的发布结果。
+
+### 仅恢复发行验收
+
+发布和验收使用独立作业，失败作业重跑无需重复执行已成功的发布作业。先核对 main、tag 和 npm 实际状态；若版本已经发布，仅重新核验现有版本并刷新 main 文档：
+
+```sh
+gh workflow run release.yml --ref main -f verify_only=true
+```
+
+此入口跳过 release-it、版本提升、提交和标签操作，也忽略 increment；它使用触发提交的 package.json 验证实际 npm 产物。不能用“重新发一个版本”或覆盖已有版本来修复单纯的验收延迟。若发布调用本身结果未知，先厘清实际状态再选择恢复步骤。
 
 文档 dispatch 失败不再吞掉；它与 Deploy Docs 的构建、实际部署和公网地址核验分别报告。没有触发站点部署或站点验证失败时，不能称文档交付完成。
 
