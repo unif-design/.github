@@ -4,7 +4,7 @@
 
 ## 前置条件
 
-- `gh` CLI 已安装,登录账号是 `unif-design` 的 admin
+- `gh` CLI 和 Python 3 已安装，登录账号具有目标仓库的管理员权限
 - `unif-design/.github` 仓库已 clone 到本地(因为脚本需要 `scripts/rulesets/*.json`)
 - 目标 repo 已经 `gh repo create unif-design/<repo> --public`
 
@@ -21,12 +21,32 @@ cd /path/to/unif-design/.github
 
 脚本从 `templates/` 拷贝 `ci.yml` / `release.yml` / lefthook / PR&Issue 模板等,做变量替换(repo 名 / npm 包名 / Pages URL),按 native/JS + 有无 website 条件分发;同时主动移除已停用的 Dependabot 配置和自动合并 workflow。**不 commit / 不 push** —— review `git diff` 后自己 commit + 开 PR(详见 [13-sync](docs/13-sync.md))。
 
+### 2. 提交同步文件并运行 CI
+
+检查 step 1 产生的差异，按仓库交付流程提交并合入同步文件：
+
+| 文件 | 由 sync 下发 | 说明 |
+|---|---|---|
+| `.github/workflows/ci.yml` | 强制覆盖 | 共享 CI 标准，采用范围及专属检查须核对 |
+| `.github/workflows/release.yml` | 强制覆盖 | paths 按 native/JS 注入;npm 包必需 |
+| `.github/workflows/pr-title.yml` / `pr-agent.yml` | 强制覆盖 | |
+| `.github/workflows/deploy-docs.yml` | 条件分发 | 仅有 `website/` 的仓 |
+| `.github/workflows/native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 条件分发 | 仅 native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan);`native-lint` 是 required check,`nightly` 是 advisory canary |
+| `lefthook.yml` / `SECURITY.md` / `.github/PULL_REQUEST_TEMPLATE.md` / `ISSUE_TEMPLATE/*` | 强制覆盖 / 部分仅缺时创建 | `lefthook.yml` 含 native 仓的 `clang-format` / `ktlint` pre-commit(非 native 仓 glob 不命中惰性无害) |
+| `.pr_agent.toml` | 仅缺时创建 | 保留各仓 repo 特化,不覆盖 |
+| `.github/dependabot.yaml` / `.github/workflows/dependabot-{auto-merge,automerge}.yml` | 主动移除 | 组织已停用机器人自动升级 PR |
+
 先提交并执行 `.github/workflows/ci.yml`，确认包括 `verified` 在内的标准检查已注册，再配置下一步 ruleset。采用 `native-lint.yml` 时也需先注册 `lint-cpp`／`lint-kotlin`。旧仓升级按 [CI 启用步骤](docs/03-ci.md#main-复用已通过的-pr)分阶段完成，不能给尚无相应作业的仓库直接加入新 required check。
 
-### 2. 跑 setup-repo.sh(GitHub 端配置)
+### 3. 跑 setup-repo.sh(GitHub 端配置)
+
+仓库内的 `.github/` 文件定义 workflow，不会自动启用 GitHub 端保护。远端配置也属于接入模板：基础设置来自 `templates/repository-settings.json`，主分支规则来自 `scripts/rulesets/`，统一由 `setup-repo.sh` 核对和应用，不在各库另写配置逻辑。
 
 ```sh
 cd /path/to/unif-design/.github
+# 只读检查；有差异、权限不足或 CI 检查尚未注册时返回非零。
+./scripts/setup-repo.sh <repo-name> --check
+# 只补齐差异；相同设置不重复写入，修改后重新读取确认。
 ./scripts/setup-repo.sh <repo-name>
 ```
 
@@ -35,7 +55,9 @@ cd /path/to/unif-design/.github
 ./scripts/setup-repo.sh portal
 ```
 
-脚本会自动配:
+脚本使用已有 gh 登录和 Python 3，先核对管理员权限及实际 CI 作业名称，再执行下列配置。403、网络错误或未知状态不会当作“尚未配置”；未注册必需检查时不执行写入。脚本不创建组织共用 App、Secrets 或 npm 发布绑定。
+
+脚本管理的设置：
 
 | 配置 | 详情 |
 |---|---|
@@ -49,22 +71,7 @@ cd /path/to/unif-design/.github
 | GitHub Pages(若有 deploy-docs.yml)| enable + Source=GitHub Actions |
 | About → Website | 自动指向 Pages URL |
 
-跑完看到 `✅ <repo> GitHub 端配置完成`,GitHub 端就齐了。
-
-### 3. Commit 同步下来的文件进 repo
-
-step 1 的 `sync-repo.sh` 已经把这些文件落到工作树(无需再手动从 react-native-design 复制),review 后 commit + PR:
-
-| 文件 | 由 sync 下发 | 说明 |
-|---|---|---|
-| `.github/workflows/ci.yml` | 强制覆盖 | 共享 CI 标准，采用范围及专属检查须核对 |
-| `.github/workflows/release.yml` | 强制覆盖 | paths 按 native/JS 注入;npm 包必需 |
-| `.github/workflows/pr-title.yml` / `pr-agent.yml` | 强制覆盖 | |
-| `.github/workflows/deploy-docs.yml` | 条件分发 | 仅有 `website/` 的仓 |
-| `.github/workflows/native-lint.yml` / `nightly-build-check.yml` / `.clang-format` | 条件分发 | 仅 native 仓(有手写 `.kt/.mm`,即 umeng / hms-scan);`native-lint` 是 required check,`nightly` 是 advisory canary |
-| `lefthook.yml` / `SECURITY.md` / `.github/PULL_REQUEST_TEMPLATE.md` / `ISSUE_TEMPLATE/*` | 强制覆盖 / 部分仅缺时创建 | `lefthook.yml` 含 native 仓的 `clang-format` / `ktlint` pre-commit(非 native 仓 glob 不命中惰性无害) |
-| `.pr_agent.toml` | 仅缺时创建 | 保留各仓 repo 特化,不覆盖 |
-| `.github/dependabot.yaml` / `.github/workflows/dependabot-{auto-merge,automerge}.yml` | 主动移除 | 组织已停用机器人自动升级 PR |
+只有回读与模板一致才报告通过。检查范围限于脚本管理的仓库设置；npm 发布绑定、CI 运行结果和设备验收仍各自核对。
 
 ### 4. npm Trusted Publisher(npm 包专用)
 
@@ -99,15 +106,11 @@ npmjs.com → 你的包 → Settings → Publishing access → Trusted Publisher
 
 修 `scripts/rulesets/protect-main.json` 后，逐仓确认 workflow 和检查名称已经接入，再运行 `setup-repo.sh` 更新同名 ruleset；不能在检查注册前批量套用新模板。
 
-## 重跑 setup-repo.sh 安全吗
+## 重复执行与验证
 
-**安全**。所有 API 调用都是 PATCH / 创建-或-更新,不会破坏现有配置:
-- Repo Settings 重设同样值
-- Ruleset 同名存在则 PUT 更新,不存在则 POST 新建
-- Security features 已 enable 重 enable 一次也无副作用
-- CodeQL Default setup 重跑保持 not-configured(主动关闭,不会被重新打开)
+先读后比较，相同设置不写入。普通差异只 PATCH 对应字段；`protect main` 同名唯一时更新，没有时创建，多个同名规则则停止。保留已有的额外必需检查和其他规则，不修改其他命名的 Ruleset；发布机器人豁免以组织模板为准，不给普通账号或管理员额外豁免。
 
-跑多次幂等。
+安全开关已符合标准时跳过。只有存在文档部署 workflow 才检查 Pages，已一致的 Pages 和网站入口不重复配置。失败或回读仍有差异时返回非零，不报告全部完成。已有仓库先运行 `--check` 查看缺项，再明确执行应用模式。
 
 ## 限制(脚本搞不定的)
 
