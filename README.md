@@ -17,7 +17,7 @@
 
 ## 同步到已有仓库
 
-只更新 Camera、Design、HMS Scan、Umeng、Chat、Icons 的 AGENTS 共享入口：
+只更新 RN 库的 AGENTS 共享入口，保留各库专属规则：
 
 ```sh
 ./scripts/sync-agent-standards.sh react-native-design ../react-native-design
@@ -51,6 +51,6 @@ node scripts/sync-llms.cjs react-native-design ../react-native-design --check
 - 单页来源注释只保留包名；包版本集中在 `llms.txt`、`llms-full.txt` 和包声明。只升级包版本时，`md/*.md` 与单页索引保持不变，避免每次发版重写全部文档。
 - [远端设置模板](templates/repository-settings.json)和[主分支模板](scripts/rulesets/)：由 setup-repo 应用到指定仓库，不能靠复制 JSON 文件代替 GitHub 配置。
 - [templates](templates/)：复制到各仓库的文件源；更改后需要重新同步。
-- [AGENTS 模板](templates/AGENTS.md)：只指向 [unif-portal-dev-skills](https://github.com/unif-skill/unif-portal-dev-skills) 和项目开发资料。
+- [AGENTS 模板](templates/AGENTS.md)：通用组织、RN 实现、库工程和文档使用 [uni-skills](https://github.com/unif-skill/uni-skills)，项目约定及能力使用 [unif-portal-dev-skills](https://github.com/unif-skill/unif-portal-dev-skills)，具体来源见各库开发资料。
 - [共享 PR workflow](.github/workflows/pr-agent.yml)：引用 `@main` 的仓库在源更新后直接采用。
 - [贡献指南](CONTRIBUTING.md)：组织通用贡献约定。

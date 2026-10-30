@@ -8,7 +8,7 @@ full_sync_script="$script_dir/sync-repo.sh"
 template="$script_dir/../templates/AGENTS.md"
 templates_dir="$script_dir/../templates"
 # 新库使用公开文档入口，已有六库保持专属技能映射。
-canonical_template_sha256='5bc734617587b3bdaab9b23b72212fca326d2906056d833b3118aa91d40c682c'
+canonical_template_sha256='073aad9178b3deb9fda6a1782223abb894feb5214ee7758664dd06c48a0696af'
 begin_marker='<!-- BEGIN UNIF REACT NATIVE STANDARD -->'
 end_marker='<!-- END UNIF REACT NATIVE STANDARD -->'
 workspace="$(mktemp -d)"
@@ -114,8 +114,8 @@ assert_short_bootstrap_template() {
     fail '短 bootstrap 模板唯一 H2 不是「开发入口」'
 
   step_count="$(awk '/^- / { count++ } END { print count + 0 }' "$template")"
-  [[ "$step_count" -eq 4 ]] || fail "入口模板应包含能力、开发、阶段与项目资料四项"
-  for stage_skill in code-development architecture-design code-testing code-review code-delivery; do
+  [[ "$step_count" -eq 8 ]] || fail "入口模板应包含四个通用职责及能力、项目开发、阶段和资料入口"
+  for stage_skill in code-organization react-native-development react-native-library documentation code-development architecture-design code-testing code-review code-delivery; do
     grep -Fq "$stage_skill" "$template" || fail "缺少阶段技能:$stage_skill"
   done
 
