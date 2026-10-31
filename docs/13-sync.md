@@ -1,5 +1,7 @@
 [← 索引](../AUTOMATION.md) · [← 配置文件清单](./12-reference.md)
 
+> 历史资料：以下内容用于追溯迁移前的标准。当前工程接入与交付请使用[现行维护入口](../README.md)。
+
 ---
 
 # 一键同步 workflow 模板(`scripts/sync-repo.sh`)

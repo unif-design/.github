@@ -1,5 +1,7 @@
 # Unif Design 自动化流程标准
 
+> 历史资料：以下内容用于追溯迁移前的标准。当前工程接入与交付请使用[现行维护入口](README.md)。
+
 `unif-design` 组织所有仓库共享的 CI / 发版 / 依赖管理 / PR review 标准。**以 `@unif/react-native-design` 仓库为参考实例**,其他 repo 套用同一套模式(配置文件路径、命令、ruleset 勾选项一致;只有 npm 包名 / specific scripts 名等需要替换)。
 
 各 repo 在自己的 README / CONTRIBUTING 里加链接 `https://github.com/unif-design/.github/blob/main/AUTOMATION.md` 指过来即可,**不需要每个 repo 复制一份**。

@@ -1,5 +1,7 @@
 [← 索引](../AUTOMATION.md) · [← Branch protection (Rulesets)](./05-branch-protection.md) · [安全扫描 →](./07-security.md)
 
+> 历史资料：以下内容用于追溯迁移前的标准。当前工程接入与交付请使用[现行维护入口](../README.md)。
+
 ---
 
 # 依赖管理（人工升级）
