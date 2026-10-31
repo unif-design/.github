@@ -1,61 +1,9 @@
-# Contributing to Unif Design projects
+# 贡献指南
 
-`unif-design` 组织下所有仓库的通用贡献指南。各仓库可以在自己的 `CONTRIBUTING.md` 里 override / 扩展项目特有的内容。
+先读取目标仓库的 `AGENTS.md`、开发资料和实际工作流，按本次变更运行适用检查。仓库自有贡献指南优先；保护规则、审核要求和发布方式以该仓当前配置为准。
 
-## 工作流
+工程交付机制见 [github-delivery](https://github.com/unif-skill/uni-skills/tree/main/skills/github-delivery)，Unif RN 的组织约定见 [code-delivery](https://github.com/unif-skill/unif-portal-dev-skills/tree/main/skills/code-delivery)。消费仓运行自己的已提交工作流，不再调用本组织仓的共享工作流。
 
-main 受 branch protection 保护,不能直接 push。所有改动走 **feature branch + PR**:
+提交与 PR 的标题、说明使用中文，保留 Conventional Commits 类型前缀及必要代码标识。说明实际改动、验证结果和消费者影响；发布类型按本仓配置判断，主版本升级需事先明确授权。
 
-```sh
-git switch -c <type>/<short-description>
-# 例:feat/login-flow / fix/icon-fallback / chore/upgrade-deps
-```
-
-提交前本地验证:
-
-```sh
-yarn lint
-yarn typecheck       # 若用 TypeScript
-yarn test
-```
-
-push 到远端 + 在 GitHub UI 开 PR。PR template 会自动套上。
-
-## Conventional Commits
-
-commit message 必须符合 [Conventional Commits](https://www.conventionalcommits.org/) 规范,由 `commitlint` 强校验。常用前缀:
-
-| 前缀 | 用途 | 自动发版行为(若仓库配了)|
-|---|---|---|
-| `feat` | 新功能 | bump **minor** |
-| `fix` | Bug 修复 | bump **patch** |
-| `refactor` / `chore` / `docs` / `test` / `style` / `perf` / `ci` | 维护类 | 当前 Angular preset 仍可推断 **patch**；是否执行发布取决于工作流路径和仓库发布检查 |
-| body 含 `BREAKING CHANGE:` | 破坏性变更 | bump **major** |
-
-约束:
-
-- 提交类型不决定工作流是否启动。先核对本仓 `release.yml` 的触发路径与专属检查，再按[发版机制](docs/04-release.md)判断版本；major 必须另获用户明确授权。
-
-- subject 全小写,不含大写英文专有名词(commitlint `subject-case` 规则)
-- subject 不要句号结尾
-- 一次 commit 一个 logical change
-
-## PR 流程
-
-1. CI 必须全绿才能合(由 branch protection 强制)
-2. self-review diff,确认没有遗留 console.log / 调试代码
-3. 关注 PR Agent(DeepSeek 自动 review)的评论,采纳有价值的建议
-4. 点 **Squash and merge** —— PR 上多个 commit 会合成 1 个进 main(跟 conventional commits 完美对齐)
-5. 源 branch merge 后自动删
-
-## 共享基础设施
-
-org 级别集中管理的:
-
-- **Secret `DEEPSEEK_API_KEY`** —— 全 org 共享,PR Agent 用
-- **Reusable workflow `unif-design/.github/.github/workflows/pr-agent.yml`** —— PR-Agent + DeepSeek 自动 review,各 repo 5 行 caller 调用
-- **PR template** —— 默认套用(各 repo 可 override)
-
-## 项目特有内容
-
-具体仓库的:开发环境 setup、scripts、原生构建、发版流程,看各 repo 自己的 `CONTRIBUTING.md` 或 `docs/` 目录。
+涉及安全问题时遵循 [安全政策](SECURITY.md)，不在公开 issue 或 PR 中提交凭据及敏感信息。

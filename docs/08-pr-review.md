@@ -1,5 +1,7 @@
 [← 索引](../AUTOMATION.md) · [← 安全扫描](./07-security.md) · [Org 级共享基础设施 →](./09-org-sharing.md)
 
+> 历史资料：以下内容用于追溯迁移前的标准。当前工程接入与交付请使用[现行维护入口](../README.md)。
+
 ---
 
 # PR Review(AI 辅助)

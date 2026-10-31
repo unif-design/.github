@@ -8,8 +8,8 @@
 
 - [ ] `feat` 新功能(触发 minor 发版)
 - [ ] `fix` Bug 修复(触发 patch 发版)
-- [ ] `refactor` / `chore` / `docs` / `test` / `ci`(不发版)
-- [ ] **包含 BREAKING CHANGE**(触发 major 发版,在 commit body 显式写 `BREAKING CHANGE: ...`)
+- [ ] `refactor` / `chore` / `docs` / `test` / `ci`（是否发版按本仓工作流与版本规则判断）
+- [ ] **包含 BREAKING CHANGE**（主版本升级需明确授权，并在 commit body 写 `BREAKING CHANGE: ...`）
 
 ## 验证
 

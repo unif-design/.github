@@ -1,56 +1,17 @@
-# Unif 组织配置
+# Unif 组织默认文件
 
-集中维护 `unif-design` 的 CI、发布流程、开发入口和 GitHub 模板。
+本仓提供组织默认的贡献指南、安全政策、行为准则和 PR 模板。工程交付标准已迁出；消费仓保存实际采用的工作流、检查工具及配置，CI 不再读取本仓的共享工作流或下载标准脚本。
 
-## 按任务查找
+## 当前维护入口
 
-| 任务                    | 入口                                   |
-| ----------------------- | -------------------------------------- |
-| 接入新仓库              | [接入指南](ONBOARDING.md)              |
-| 查看 CI、发布和分支规则 | [自动化标准](AUTOMATION.md)            |
-| 核对及补齐远端设置      | [远端配置模板](templates/repository-settings.json)、[主分支规则](scripts/rulesets/) |
-| 核对新库接入与发行前置 | [接入验收](ONBOARDING.md#公开交付前置)，使用 `scripts/check-repo.sh` |
-| 从应用提取公共库        | [库提取与等价迁移](docs/14-library-extraction.md) |
-| 更新共享文件            | [同步说明](docs/13-sync.md)            |
-| 接入 PR 自动审查        | [PR Review](docs/08-pr-review.md)      |
-| 排查流水线问题          | [故障排查](docs/11-troubleshooting.md) |
+| 内容 | 唯一维护来源 |
+|---|---|
+| GitHub CI、模板同步、仓库保护与发布机制 | [Uni Skills 的 github-delivery](https://github.com/unif-skill/uni-skills/tree/main/skills/github-delivery) |
+| Unif RN 组织约定与非敏感接入配置 | [Unif Dev 的 code-delivery](https://github.com/unif-skill/unif-portal-dev-skills/tree/main/skills/code-delivery) |
+| 工程实际执行版本、专属命令及验证 | 对应仓库的 `.github/delivery.json`、工作流与开发资料 |
 
-## 同步到已有仓库
+两套技能独立安装和使用。组织配置在接入时写入目标工程；通用工具不查找其他技能的安装目录。标准更新通过同步、审查和工程 PR 生效，已接入工程的 CI 不依赖技能安装。
 
-只更新 RN 库的 AGENTS 共享入口，保留各库专属规则：
+## 历史资料
 
-```sh
-./scripts/sync-agent-standards.sh react-native-design ../react-native-design
-```
-
-完整同步 workflow 与配置：
-
-```sh
-./scripts/sync-repo.sh react-native-design
-```
-
-同步会修改目标仓库文件；完整同步还会移除已停用的配置。执行后检查差异，各仓库自行提交和交付。本地文件同步不等于远端保护已启用；CI 作业注册后继续核对并应用远端模板：
-
-```sh
-./scripts/setup-repo.sh react-native-design --check
-./scripts/setup-repo.sh react-native-design
-```
-
-`setup-repo.sh --check` 只读核验远端；`check-repo.sh` 核对工作树接入，`--release` 检查公开交付前置。远端应用模式只修改差异并回读确认。已有共用 App、Secrets 和 npm 发布绑定不由脚本重配，详情见接入指南。
-
-只同步 LLM 文档生成实现（保留各库专属检查）：
-
-```sh
-node scripts/sync-llms.cjs react-native-design ../react-native-design
-node scripts/sync-llms.cjs react-native-design ../react-native-design --check
-```
-
-## 维护来源
-
-- [LLM 文档模板](templates/llms/)：五个文档站共用索引、路由与产物校验，Chat 保留代码 API 的专属转换；产物内容由各库文档和包声明生成。
-- 单页来源注释只保留包名；包版本集中在 `llms.txt`、`llms-full.txt` 和包声明。只升级包版本时，`md/*.md` 与单页索引保持不变，避免每次发版重写全部文档。
-- [远端设置模板](templates/repository-settings.json)和[主分支模板](scripts/rulesets/)：由 setup-repo 应用到指定仓库，不能靠复制 JSON 文件代替 GitHub 配置。
-- [templates](templates/)：复制到各仓库的文件源；更改后需要重新同步。
-- [AGENTS 模板](templates/AGENTS.md)：通用组织、RN 实现、库工程和文档使用 [uni-skills](https://github.com/unif-skill/uni-skills)，项目约定及能力使用 [unif-portal-dev-skills](https://github.com/unif-skill/unif-portal-dev-skills)，具体来源见各库开发资料。
-- [共享 PR workflow](.github/workflows/pr-agent.yml)：引用 `@main` 的仓库在源更新后直接采用。
-- [贡献指南](CONTRIBUTING.md)：组织通用贡献约定。
+`AUTOMATION.md`、`ONBOARDING.md` 和 `docs/` 保留迁移前的设计、操作说明与验收依据，不再作为新工程接入入口。已迁移的旧脚本、模板及共享工作流从当前分支移除；完整旧实现可在[迁移前修订](https://github.com/unif-design/.github/tree/ad4091aa2c508b2a98076455a89897fd65dd2b85)追溯。

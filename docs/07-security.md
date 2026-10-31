@@ -1,5 +1,7 @@
 [← 索引](../AUTOMATION.md) · [← 依赖管理（人工升级）](./06-dependencies.md) · [PR Review (AI 辅助) →](./08-pr-review.md)
 
+> 历史资料：以下内容用于追溯迁移前的标准。当前工程接入与交付请使用[现行维护入口](../README.md)。
+
 ---
 
 # 安全扫描

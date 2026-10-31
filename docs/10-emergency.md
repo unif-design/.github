@@ -1,5 +1,7 @@
 [← 索引](../AUTOMATION.md) · [← Org 级共享基础设施](./09-org-sharing.md) · [排查常见报错 →](./11-troubleshooting.md)
 
+> 历史资料：以下内容用于追溯迁移前的标准。当前工程接入与交付请使用[现行维护入口](../README.md)。
+
 ---
 
 # 应急流程
