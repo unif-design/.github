@@ -6,8 +6,8 @@
 
 | 内容 | 唯一维护来源 |
 |---|---|
-| GitHub CI、模板同步、仓库保护与发布机制 | [Uni Skills 的 github-delivery](https://github.com/unif-skill/uni-skills/tree/main/skills/github-delivery) |
-| Unif RN 组织约定与非敏感接入配置 | [Unif Dev 的 code-delivery](https://github.com/unif-skill/unif-portal-dev-skills/tree/main/skills/code-delivery) |
+| GitHub CI、模板同步、仓库保护与发布机制 | [uni-github-delivery](https://github.com/unif-skill/uni-skills/tree/main/skills/uni-github-delivery) |
+| Unif RN 组织约定与非敏感接入配置 | [unif-code-delivery](https://github.com/unif-skill/unif-portal-dev-skills/tree/main/plugins/unif-engineering-skills/skills/unif-code-delivery) |
 | 工程实际执行版本、专属命令及验证 | 对应仓库的 `.github/delivery.json`、工作流与开发资料 |
 
 两套技能独立安装和使用。组织配置在接入时写入目标工程；通用工具不查找其他技能的安装目录。标准更新通过同步、审查和工程 PR 生效，已接入工程的 CI 不依赖技能安装。
