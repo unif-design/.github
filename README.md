@@ -6,7 +6,7 @@
 
 | 内容 | 唯一维护来源 |
 |---|---|
-| GitHub CI、模板同步、仓库保护与发布机制 | [uni-github-delivery](https://github.com/unif-skill/uni-skills/tree/main/skills/uni-github-delivery) |
+| GitHub CI、模板同步、仓库保护与发布机制 | [uni-github-delivery-setup](https://github.com/unif-skill/uni-skills/tree/main/skills/uni-github-delivery-setup) |
 | Unif RN 组织约定与非敏感接入配置 | [unif-code-delivery](https://github.com/unif-skill/unif-portal-dev-skills/tree/main/plugins/unif-engineering-skills/skills/unif-code-delivery) |
 | 工程实际执行版本、专属命令及验证 | 对应仓库的 `.github/delivery.json`、工作流与开发资料 |
 
